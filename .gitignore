@@ -102,3 +102,31 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# IDE stuff
+.project
+.settings
+..bfg-report
+
+# Markdown garbage
+.*.md.html
+
+# Python stuff
+*.pyc
+__init__.pyc
+.pydevproject
+*Config.py
+# Don't track checkpoints
+.ipynb_checkpoints
+
+# Some usual extensions and folders
+.DS_Store
+*~
+*.bak
+*.suo
+*.ncb
+*.user
+*.tmp
+
+# Ignore some data
+data/
