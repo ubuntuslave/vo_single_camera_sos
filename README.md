@@ -7,7 +7,7 @@ Proof of concept of the visual odometry (VO) application via a single-camera cat
 
 *Copyright (C)* 2018 under the *Gnu Public License version 3 (GPL3)*
 
-***WARNING***: This code is at an experimental stage, and has only been tested under **Python 3.6** on **Mac OS X 10.12.6 (Sierra) **
+**WARNING**: This code is at an experimental stage, and has only been tested under **Python 3.6**  on   **Mac OS X 10.12.6 (Sierra)**
 
 ## Setup
 
