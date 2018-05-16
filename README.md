@@ -283,7 +283,7 @@ For example,
     $ python3 demo_vo_rgbd.py "PATH_TO_MY_SEQUENCE/free_style/rgbd" --is_synthetic=false --hand_eye_transformation="PATH_TO_APPROXIMATED/rgbd_hand_eye_transformation.txt"
 
 
-[ ] TODO: To run the VO demo with the single-camera SOS:
+- [ ] To run the VO demo with the single-camera SOS:
 
     $ python3 demo_vo_sos.py TODO
 
