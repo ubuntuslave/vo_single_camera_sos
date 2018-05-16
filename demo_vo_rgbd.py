@@ -57,12 +57,15 @@ required = parser.add_argument_group('required arguments')
 optional = parser.add_argument_group('optional arguments')
 required.add_argument('--is_synthetic', help = 'Determines whether the data is real or synthetic. This is necessary to use the appropriate camera intrinsic parameters.', type = 'bool')
 optional.add_argument('--hand_eye_transformation', help = '(Optional) If real-life data, this indicates the complete path and name to hand-eye transformation file', default = 'rgbd_hand_eye_transformation.txt', type = str)
+optional.add_argument('--visualize_VO', help = '(Optional) Indicates whether to visualize the estimated 3D trajectory (and ground-truth if available).', default = True, type = 'bool')
 
 parser.print_help()
 args = parser.parse_args()
 
 def main_rgbd_vo():
     scene_path = osp.realpath(osp.expanduser(args.sequence_path[0]))
+    visualize_VO = args.visualize_VO
+
     hand_eye_T = None
     if args.is_synthetic:
         focal_length_m = 1. / 1000.0  # in [m]
@@ -94,7 +97,6 @@ def main_rgbd_vo():
 
     # HARD-CODED flags:
     # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-    visualize_VO = True
     only_visualize_frames_from_existing_VO_poses_file = False  # <<< SETME: Will not run VO if True, but just reload the file from an existing experiment
     # NOTE: For DEBUG, set use_multithreads_for_VO <-- False
     use_multithreads_for_VO = True  # <<< 3D Visualization interactivity (is more responsive) when running the VO as a threads
