@@ -46,7 +46,7 @@ In Linux (Ubuntu), you may need `vispy` with *Tkinter* and *PyQt*):
     $ sudo apt-get install python3-tk python3-pyqt5
     $ sudo -H pip3 install vispy
     
-For some reason, I hat to install *PyQt5* from pip:
+For some reason, I had to install *PyQt5* from pip:
 
     $ sudo -H pip3 install pyqt5
 
@@ -167,7 +167,7 @@ In other words:
 ### OpenGV (for Visual Odometry):
 
 
-`pyopengv` depends on **Boost** >= 1.66 and **Boost.python.numpy*, so make sure it gets installed before proceeding. In Ubuntu, you may need to compile boost 1.66+ by downloading its source as indicated in this [tutorial](http://www.boost.org/doc/libs/1_66_0/more/getting_started/unix-variants.html#get-boost). I did:
+`pyopengv` depends on **Boost** >= 1.66 and **Boost.python.numpy**, so make sure it gets installed before proceeding. In **Ubuntu**, you may need to compile boost 1.66+ by downloading its source as indicated in this [tutorial](http://www.boost.org/doc/libs/1_66_0/more/getting_started/unix-variants.html#get-boost). I did:
 
     $ cd path/to/boost_1_66_0
     $ ./bootstrap.sh --help
@@ -180,7 +180,9 @@ Finally,
 
     $ sudo ./b2 install
 
-Clone the fork from [opengv](https://github.com/ubuntuslave/opengv.git) because this has Python bindings for the non-central camera case, which we need for tracking the omnistereo system pose:
+#### Assuming, **Boost**  >= 1.66 and **Boost.python.numpy* are installed
+
+Clone the fork from [opengv](https://github.com/ubuntuslave/opengv.git) because this has Python bindings for the *non-central camera* case, which we need for tracking the omnistereo system pose:
 
     $ cd ~/src
     $ git clone https://github.com/ubuntuslave/opengv.git
@@ -188,14 +190,14 @@ Clone the fork from [opengv](https://github.com/ubuntuslave/opengv.git) because 
     $ git checkout non_central-python
     $ cd .. && mkdir opengv-build && cd opengv-build
     
-Now build the project, making sure the correct paths for *Python* get selected
+Now build the project, making sure 
 
-and the boost.python.numeric path is set correctly.
-
+- The correct paths for *Python* get selected, and
+- The `boost.python.numeric` path is set correctly.
 
     $ ccmake ../opengv
 
-If compiling with `python3` support, you must *toggle* the advanced configuration and set the appropriate *Python* paths. For example, in Ubuntu 16.04, I had:
+If compiling with `python3` support, you must *toggle* the advanced configuration and set the appropriate *Python* paths. For example, in **Ubuntu 16.04**, I had:
 
     PYTHON_EXECUTABLE             /usr/bin/python3
     PYTHON_INCLUDE_DIR            /usr/include/python3.5
@@ -250,12 +252,38 @@ Save, close, and reopen your Terminal
 
 #### Run Python as Usual:
 
-To run the VO demo with the single-camera SOS:
-
-    $ python3 demo_vo_sos.py
-
 To run the VO demo with the RGB-D camera:
 
-    $ python3 demo_vo_rgbd.py
+```
+usage: demo_vo_rgbd.py [-h] [--is_synthetic IS_SYNTHETIC]
+                       [--hand_eye_transformation HAND_EYE_TRANSFORMATION]
+                       sequence_path
 
+Demo of frame-to-frame visual odometry for the RGB-D images collected for the
+vo_single_camera_sos project.
+
+positional arguments:
+  sequence_path         The path to the sequence where the rgb and depth
+                        folders are located.
+
+required arguments:
+  --is_synthetic IS_SYNTHETIC
+                        Determines whether the data is real or synthetic. This
+                        is necessary to use the appropriate camera intrinsic
+                        parameters.
+
+optional arguments:
+  --hand_eye_transformation HAND_EYE_TRANSFORMATION
+                        (Optional) If real-life data, this indicates the
+                        complete path and name to hand-eye transformation file
+```
+
+For example,
+
+    $ python3 demo_vo_rgbd.py "PATH_TO_MY_SEQUENCE/free_style/rgbd" --is_synthetic=false --hand_eye_transformation="PATH_TO_APPROXIMATED/rgbd_hand_eye_transformation.txt"
+
+
+[ ] TODO: To run the VO demo with the single-camera SOS:
+
+    $ python3 demo_vo_sos.py TODO
 
