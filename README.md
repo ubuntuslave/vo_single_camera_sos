@@ -165,7 +165,14 @@ In other words:
 #### OpenGV (for Visual Odometry):
 
 
-`pyopengv` depends on **Boost** >= 1.66 and **Boost.python.numpy**, so make sure it gets installed before proceeding. In **Ubuntu**, you may need to compile boost 1.66+ by downloading its source as indicated in this [tutorial](https://www.boost.org/doc/libs/1_67_0/more/getting_started/unix-variants.html#get-boost). I did:
+`pyopengv` depends on **Boost** >= 1.66 and **Boost.python.numpy**, so make sure it gets installed before proceeding. 
+
+In **Mac OS X**, with Homebrew:
+
+    $ brew install boost
+    $ brew install boost-python3
+    
+In **Ubuntu**, you may need to compile boost 1.66+ by downloading its source as indicated in this [tutorial](https://www.boost.org/doc/libs/1_67_0/more/getting_started/unix-variants.html#get-boost). I did:
 
     $ cd path/to/boost_1_67_0
     $ ./bootstrap.sh --help
@@ -178,7 +185,9 @@ Finally,
 
     $ sudo ./b2 install
 
-##### Assuming, **Boost**  >= 1.66 and **Boost.python.numpy* are installed
+##### Compile and install OpenGV
+
+Assuming, **Boost**  >= 1.66 and **Boost.python.numpy* were already successfully installed.
 
 Clone the fork from [opengv](https://github.com/ubuntuslave/opengv.git) because this has Python bindings for the *non-central camera* case, which we need for tracking the omnistereo system pose:
 
@@ -199,6 +208,11 @@ If compiling with `python3` support, you must *toggle* the advanced configuratio
 
 For example, in **Mac OS X**, I set:
 
+    Boost_NUMPY3_LIBRARY_DEBUG       /usr/local/lib/libboost_numpy36-mt.dylib                        
+    Boost_NUMPY3_LIBRARY_RELEASE     /usr/local/lib/libboost_numpy36-mt.dylib                        
+    Boost_NUMPY_LIBRARY_DEBUG        /usr/local/lib/libboost_numpy-mt.dylib                          
+    Boost_NUMPY_LIBRARY_RELEASE      /usr/local/lib/libboost_numpy-mt.dylib
+ 
     PYTHON_EXECUTABLE             /usr/local/bin/python3
     PYTHON_INCLUDE_DIR            /usr/local/Cellar/python3/3.6.5/Frameworks/Python.framework/Versions/3.6/include/python3.6m
     PYTHON_INSTALL_DIR            /usr/local/lib/python3.6/site-packages/
@@ -222,7 +236,7 @@ In Ubuntu, I had to also configure the proper location of the *installed-from-so
     Boost_PYTHON_LIBRARY_DEBUG       /usr/lib/x86_64-linux-gnu/libboost_python.so                                   
     Boost_PYTHON_LIBRARY_RELEASE     /usr/lib/x86_64-linux-gnu/libboost_python.so 
         
-Once the Cmakefiles are generated, compile and install as usual:
+Once the Cmakefiles are *generated*, compile and install as usual:
 
     $ make
     $ sudo make install
