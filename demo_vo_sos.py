@@ -55,7 +55,7 @@ parser._action_groups.pop()
 required = parser.add_argument_group('required arguments')
 optional = parser.add_argument_group('optional arguments')
 required.add_argument('--calibrated_gums_file', help = 'Indicates the complete path and name of the calibrated GUMS pickle file', default = 'gums-calibrated.pkl', type = str)
-# required.add_argument('--is_synthetic', help = 'Determines whether the data is real or synthetic. This is necessary to use the appropriate camera intrinsic parameters.', type = 'bool')
+optional.add_argument('--visualize_VO', help = '(Optional) Indicates whether to visualize the estimated 3D trajectory (and ground-truth if available).', default = True, type = 'bool')
 
 parser.print_help()
 args = parser.parse_args()
@@ -63,10 +63,10 @@ args = parser.parse_args()
 def main_sos_vo():
     scene_path = osp.realpath(osp.expanduser(args.sequence_path[0]))
     gums_calibrated_filename = osp.realpath(osp.expanduser(args.calibrated_gums_file))
+    visualize_VO = args.visualize_VO
 
     # HARD-CODED flags:
     # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-    visualize_VO = True
     use_perfect_model_VO = False  # WARNING: It may be used only when using SYNTHETIC images
     only_visualize_frames_from_existing_VO_poses_file = False  # <<< SETME: Will not run VO if True, but just reload the file from an existing experiment
     # NOTE: For DEBUG, set use_multithreads_for_VO <-- False

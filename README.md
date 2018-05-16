@@ -15,11 +15,13 @@ Proof of concept of the visual odometry (VO) application via a single-camera cat
 
 #### Required modules:
 
-- Scipy
 - Numpy
+- Matplotlib
 - Vispy
   - Tkinter
   - PyQt5
+  
+- Scipy (Optional, for GUMS calibration)
   
 And these packages with their respective Python bindings (instructions below):
 
@@ -35,11 +37,8 @@ For instance Using Python 3.6, with `pip3`, install the following modules:
 For visualization:
 
     $ pip3 install matplotlib
-    $ pip3 install mpldatacursor
-
-#### (Optional) For 3D Visualization:
-
     $ pip3 install vispy
+    $ pip3 install pyqt5
 
 In Linux (Ubuntu), you may need `vispy` with *Tkinter* and *PyQt*):
  
@@ -244,30 +243,9 @@ Once the Cmakefiles are *generated*, compile and install as usual:
     
 *NOTE*: I had to run `$ sudo ldconfig` for the `$ python3 -c "import pyopengv"` to work.
 
-    
-### Omnistereo package
-
-Install the omnistereo package by running:
-
-    $ cd path_to_the_cloned_repo
-    $ sudo -H pip install -e .
-
 ### Running the Demos
 
-#### Add `omnistereo` to your $PYTHONPATH:
-
-To your `.bashrc` file, you may add:
-
-    # Omnistereo project stuff for Python
-    OMNISTEREO=~/src/vo_single_camera_sos
-    if [ -z $PYTHONPATH ]
-    then
-        export PYTHONPATH="$OMNISTEREO"
-    else
-        export PYTHONPATH="$PYTHONPATH:$OMNISTEREO"
-    fi
-
-Save, close, and reopen your Terminal
+Navigate to the path where this project was cloned. Then, invoke `python3` with the following usages.
 
 #### To run the VO demo with the RGB-D camera:
 
@@ -293,11 +271,16 @@ optional arguments:
   --hand_eye_transformation HAND_EYE_TRANSFORMATION
                         (Optional) If real-life data, this indicates the
                         complete path and name to hand-eye transformation file
+                        
+  --visualize_VO VISUALIZE_VO
+                        (Optional) Indicates whether to visualize the
+                        estimated 3D trajectory (and ground-truth if
+                        available).
 ```
 
 For example, using the `free_style` sequence,
 
-    $ python3 demo_vo_rgbd.py "PATH_TO_MY_SEQUENCE/free_style" --is_synthetic=false --hand_eye_transformation="PATH_TO_APPROXIMATED/rgbd_hand_eye_transformation.txt"
+    $ python3 demo_vo_rgbd.py "PATH_TO_MY_SEQUENCE/free_style" --is_synthetic=false --hand_eye_transformation="PATH_TO_APPROXIMATED/rgbd_hand_eye_transformation.txt" --visualize_VO=true
 
 
 #### To run the VO demo with the single-camera SOS:
@@ -317,9 +300,15 @@ required arguments:
   --calibrated_gums_file CALIBRATED_GUMS_FILE
                         Indicates the complete path and name of the calibrated
                         GUMS pickle file
+                        
+optional arguments:
+  --visualize_VO VISUALIZE_VO
+                        (Optional) Indicates whether to visualize the
+                        estimated 3D trajectory (and ground-truth if
+                        available).                        
 ```
 
 For example, using the `free_style` sequence,
 
-    $ python3 demo_vo_sos.py "PATH_TO_MY_SEQUENCE/free_style" --calibrated_gums_file="PATH_TO_CALIBRATED_MODEL/gums-calibrated.pkl"
+    $ python3 demo_vo_sos.py "PATH_TO_MY_SEQUENCE/free_style" --calibrated_gums_file="PATH_TO_CALIBRATED_MODEL/gums-calibrated.pkl" --visualize_VO=true
 

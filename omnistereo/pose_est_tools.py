@@ -43,7 +43,6 @@ import pyopengv
 import numpy as np
 from math import log10, sqrt
 from time import process_time
-from matplotlib.pyplot import get_cmap
 from warnings import warn
 from sys import exc_info
 from omnistereo.common_tools import make_sure_path_exists, get_length_units_conversion_factor
