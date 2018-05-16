@@ -37,7 +37,7 @@ For visualization:
     $ pip3 install matplotlib
     $ pip3 install mpldatacursor
 
-### (Optional) For 3D Visualization:
+#### (Optional) For 3D Visualization:
 
     $ pip3 install vispy
 
@@ -55,11 +55,11 @@ For some reason, I had to install *PyQt5* from pip:
     $ sudo rm -rf ~/.cache/pip/
 
 
-### OpenCV 3
+#### OpenCV 3
 
 The following guide uses `Homebrew `for Mac OS X:
 
-#### Requirements:
+##### Requirements:
 
 Make sure you have installed the XCode CLI tools are all installed:
 
@@ -75,15 +75,13 @@ The last release of OpenCV's [Deep Neural Network module](http://docs.opencv.org
     
 However, it *may fail* to find a "suitable threading library available." If so, disable DNN within the CMake configuration (in the next steps)
 
-#### Install OpenCV 3
+##### Install OpenCV 3
 
-##### The Easy Way Via Homebrew (Mac OS X only):
+###### The Easy Way Via Homebrew (Mac OS X only):
     
-    $ brew install opencv3 --with-contrib --with-ffmpeg --with-gphoto2 --with-gstreamer --with-jasper --with-libdc1394 --with-openni2 --with-python3 --with-qt --with-tbb
+    $ brew install opencv3
     
-    $ brew link --overwrite --force opencv3
-
-##### The Hard (more powerful) Way from Source Code:
+###### The Hard (more powerful) Way from Source Code:
     
 Clone *OpenCV 3* from the repo
 
@@ -132,7 +130,7 @@ Then, compile OpenCV 3, and install as usual:
     $ make install
 
 
-##### In Ubuntu Linux
+###### In Ubuntu Linux
 
 In Ubuntu 16.04, using the `ros-kinetic-opencv3` version and workaround to use it with `python3`:
 
@@ -164,12 +162,12 @@ In other words:
     >>> import cv2
     
     
-### OpenGV (for Visual Odometry):
+#### OpenGV (for Visual Odometry):
 
 
-`pyopengv` depends on **Boost** >= 1.66 and **Boost.python.numpy**, so make sure it gets installed before proceeding. In **Ubuntu**, you may need to compile boost 1.66+ by downloading its source as indicated in this [tutorial](http://www.boost.org/doc/libs/1_66_0/more/getting_started/unix-variants.html#get-boost). I did:
+`pyopengv` depends on **Boost** >= 1.66 and **Boost.python.numpy**, so make sure it gets installed before proceeding. In **Ubuntu**, you may need to compile boost 1.66+ by downloading its source as indicated in this [tutorial](https://www.boost.org/doc/libs/1_67_0/more/getting_started/unix-variants.html#get-boost). I did:
 
-    $ cd path/to/boost_1_66_0
+    $ cd path/to/boost_1_67_0
     $ ./bootstrap.sh --help
 
 Select your configuration options and invoke ./bootstrap.sh again, for example:
@@ -180,7 +178,7 @@ Finally,
 
     $ sudo ./b2 install
 
-#### Assuming, **Boost**  >= 1.66 and **Boost.python.numpy* are installed
+##### Assuming, **Boost**  >= 1.66 and **Boost.python.numpy* are installed
 
 Clone the fork from [opengv](https://github.com/ubuntuslave/opengv.git) because this has Python bindings for the *non-central camera* case, which we need for tracking the omnistereo system pose:
 
@@ -197,7 +195,16 @@ Now build the project, making sure
 
     $ ccmake ../opengv
 
-If compiling with `python3` support, you must *toggle* the advanced configuration and set the appropriate *Python* paths. For example, in **Ubuntu 16.04**, I had:
+If compiling with `python3` support, you must *toggle* the advanced configuration and set the appropriate *Python* paths. 
+
+For example, in **Mac OS X**, I set:
+
+    PYTHON_EXECUTABLE             /usr/local/bin/python3
+    PYTHON_INCLUDE_DIR            /usr/local/Cellar/python3/3.6.5/Frameworks/Python.framework/Versions/3.6/include/python3.6m
+    PYTHON_INSTALL_DIR            /usr/local/lib/python3.6/site-packages/
+    PYTHON_LIBRARY                /usr/local/Cellar/python3/3.6.5/Frameworks/Python.framework/Versions/3.6/lib/libpython3.6m.dylib
+    
+For example, in **Ubuntu 16.04**, I had:
 
     PYTHON_EXECUTABLE             /usr/bin/python3
     PYTHON_INCLUDE_DIR            /usr/include/python3.5
@@ -231,9 +238,8 @@ Install the omnistereo package by running:
     $ cd path_to_the_cloned_repo
     $ sudo -H pip install -e .
 
-### Running the Demo
+### Running the Demos
 
-    
 #### Add `omnistereo` to your $PYTHONPATH:
 
 To your `.bashrc` file, you may add:
@@ -249,10 +255,7 @@ To your `.bashrc` file, you may add:
 
 Save, close, and reopen your Terminal
 
-
-#### Run Python as Usual:
-
-To run the VO demo with the RGB-D camera:
+#### To run the VO demo with the RGB-D camera:
 
 ```
 usage: demo_vo_rgbd.py [-h] [--is_synthetic IS_SYNTHETIC]
@@ -263,8 +266,8 @@ Demo of frame-to-frame visual odometry for the RGB-D images collected for the
 vo_single_camera_sos project.
 
 positional arguments:
-  sequence_path         The path to the sequence where the rgb and depth
-                        folders are located.
+  sequence_path         The path to the sequence where the rgbd folders is
+                        located.
 
 required arguments:
   --is_synthetic IS_SYNTHETIC
@@ -278,12 +281,31 @@ optional arguments:
                         complete path and name to hand-eye transformation file
 ```
 
-For example,
+For example, using the `free_style` sequence,
 
-    $ python3 demo_vo_rgbd.py "PATH_TO_MY_SEQUENCE/free_style/rgbd" --is_synthetic=false --hand_eye_transformation="PATH_TO_APPROXIMATED/rgbd_hand_eye_transformation.txt"
+    $ python3 demo_vo_rgbd.py "PATH_TO_MY_SEQUENCE/free_style" --is_synthetic=false --hand_eye_transformation="PATH_TO_APPROXIMATED/rgbd_hand_eye_transformation.txt"
 
 
-- [ ] To run the VO demo with the single-camera SOS:
+#### To run the VO demo with the single-camera SOS:
 
-    $ python3 demo_vo_sos.py TODO
+```
+usage: demo_vo_sos.py [-h] [--calibrated_gums_file CALIBRATED_GUMS_FILE]
+                      sequence_path
+
+Demo of frame-to-frame visual odometry for the Single-camera SOS images
+collected for the vo_single_camera_sos project.
+
+positional arguments:
+  sequence_path         The path to the sequence where the omni folder is
+                        located.
+
+required arguments:
+  --calibrated_gums_file CALIBRATED_GUMS_FILE
+                        Indicates the complete path and name of the calibrated
+                        GUMS pickle file
+```
+
+For example, using the `free_style` sequence,
+
+    $ python3 demo_vo_sos.py "PATH_TO_MY_SEQUENCE/free_style" --calibrated_gums_file="PATH_TO_CALIBRATED_MODEL/gums-calibrated.pkl"
 

@@ -44,14 +44,13 @@ import os.path as osp
 from os import listdir
 import fnmatch
 from omnistereo.common_tools import make_sure_path_exists, str2bool
-from omnistereo.common_cv import get_depthmap_float32_from_png, get_depthmap_img_for_visualization_from_png
 from omnistereo.camera_models import RGBDCamModel
 
 from argparse import ArgumentParser
 parser = ArgumentParser(description = 'Demo of frame-to-frame visual odometry for the RGB-D images collected for the vo_single_camera_sos project.')
 parser.register('type', 'bool', str2bool)  # add type 'bool' keyword to the registry because it doesn't exist by default!
 
-parser.add_argument('sequence_path', nargs = 1, help = 'The path to the sequence where the rgb and depth folders are located.')
+parser.add_argument('sequence_path', nargs = 1, help = 'The path to the sequence where the rgbd folders is located.')
 
 parser._action_groups.pop()
 required = parser.add_argument_group('required arguments')
@@ -112,13 +111,13 @@ def main_rgbd_vo():
             hand_eye_T = T_Cest_wrt_Rgt_transform_matrices_list[0]  # There should be a single transformation in this file
 
     scene_prefix_filename = "*.png"
-    scene_path_vo_results = osp.join(scene_path, "results")  # VO Results path
+    scene_path_rgbd = osp.join(scene_path, "rgbd")
+    scene_rgb_img_filename_template = osp.join(scene_path_rgbd, "rgb", scene_prefix_filename)
+    num_scene_images = len(fnmatch.filter(listdir(osp.join(scene_path_rgbd, "rgb")), scene_prefix_filename))
+    scene_depth_filename_template = osp.join(scene_path_rgbd, "depth", scene_prefix_filename)
+    scene_path_vo_results = osp.join(scene_path, "results-rgbd")  # VO Results path
     make_sure_path_exists(scene_path_vo_results)
-    scene_rgb_img_filename_template = osp.join(scene_path, "rgb", scene_prefix_filename)
-    num_scene_images = len(fnmatch.filter(listdir(osp.join(scene_path, "rgb")), scene_prefix_filename))
-    scene_depth_filename_template = osp.join(scene_path, "depth", scene_prefix_filename)
-    path_to_scene_name_inclusive, tail_path_rgbd = osp.split(scene_path)
-    path_to_scene_name, scene_name = osp.split(path_to_scene_name_inclusive)
+    path_to_scene_name, scene_name = osp.split(scene_path)
 
     rgbd_cam_model = RGBDCamModel(fx = fx, fy = fy, center_x = center_x, center_y = center_y, scaling_factor = scaling_factor, do_undistortion = do_undistortion, depth_is_Z = depth_is_Z, focal_length_m = focal_length_m)
     rgbd_cam_model.T_Cest_wrt_Rgt = hand_eye_T  # Apply hand-eye transformation for the camera (as found from some preceding procedure)
@@ -129,7 +128,7 @@ def main_rgbd_vo():
         replay_VO_visualization(scene_path_vo_results = scene_path_vo_results, first_image_index = first_image_index, last_image_index = last_image_index, step_for_poses = step_for_scene_images, vis_name = vis_name)
     else:
         from omnistereo.pose_est_tools import driver_VO
-        driver_VO(camera_model = rgbd_cam_model, scene_path = scene_path, scene_path_vo_results = scene_path_vo_results, scene_img_filename_template = scene_rgb_img_filename_template, depth_filename_template = scene_depth_filename_template, num_scene_images = num_scene_images, visualize_VO = visualize_VO, use_multithreads_for_VO = use_multithreads_for_VO, step_for_scene_images = step_for_scene_images, first_image_index = first_image_index, last_image_index = last_image_index, thread_name = vis_name)
+        driver_VO(camera_model = rgbd_cam_model, scene_path = scene_path_rgbd, scene_path_vo_results = scene_path_vo_results, scene_img_filename_template = scene_rgb_img_filename_template, depth_filename_template = scene_depth_filename_template, num_scene_images = num_scene_images, visualize_VO = visualize_VO, use_multithreads_for_VO = use_multithreads_for_VO, step_for_scene_images = step_for_scene_images, first_image_index = first_image_index, last_image_index = last_image_index, thread_name = vis_name)
 
     from omnistereo.common_cv import clean_up
     clean_up(wait_key_time = 1)
