@@ -9,25 +9,17 @@ Proof of concept of the visual odometry (VO) application via a single-camera cat
 
 **WARNING**: This code is at an experimental stage, and has only been tested under **Python 3.6**  on   **Mac OS X 10.12.6 (Sierra)**
 
-## Setup
+## Software Requirements
 
-### Python Modules:
-
-#### Required modules:
+`Python3` is required, with the following modules:
 
 - Numpy
 - Matplotlib
 - Vispy
-  - Tkinter
-  - PyQt5
+      - PyQt5
   
 - Scipy (Optional, for GUMS calibration)
   
-And these packages with their respective Python bindings (instructions below):
-
-- OpenCV
-- OpenGV
-
 For instance Using Python 3.6, with `pip3`, install the following modules:
 
     $ pip3 install numpy
@@ -40,19 +32,85 @@ For visualization:
     $ pip3 install vispy
     $ pip3 install pyqt5
 
-In Linux (Ubuntu), you may need `vispy` with *Tkinter* and *PyQt*):
- 
-    $ sudo apt-get install python3-tk python3-pyqt5
-    $ sudo -H pip3 install vispy
-    
-For some reason, I had to install *PyQt5* from pip:
+In addition, we require these packages with their respective *Python3 bindings*:
 
-    $ sudo -H pip3 install pyqt5
+- OpenCV
+- OpenGV
 
-***NOTE***: In Linux, you may get *Permission Denied* errors that can be solved by:
+See the end of this *README* for how to install `OpenCV` and my custom forked of `OpenGV`
 
-    $ sudo rm -rf ~/.cache/pip/
+### Running the Demos
 
+Navigate to the path where this project was cloned. Then, invoke `python3` with the following usages.
+
+#### To run the VO demo with the RGB-D camera:
+
+```
+usage: demo_vo_rgbd.py [-h] [--is_synthetic IS_SYNTHETIC]
+                       [--hand_eye_transformation HAND_EYE_TRANSFORMATION]
+                       sequence_path
+
+Demo of frame-to-frame visual odometry for the RGB-D images collected for the
+vo_single_camera_sos project.
+
+positional arguments:
+  sequence_path         The path to the sequence where the rgbd folders is
+                        located.
+
+required arguments:
+  --is_synthetic IS_SYNTHETIC
+                        Determines whether the data is real or synthetic. This
+                        is necessary to use the appropriate camera intrinsic
+                        parameters.
+
+optional arguments:
+  --hand_eye_transformation HAND_EYE_TRANSFORMATION
+                        (Optional) If real-life data, this indicates the
+                        complete path and name to hand-eye transformation file
+                        
+  --visualize_VO VISUALIZE_VO
+                        (Optional) Indicates whether to visualize the
+                        estimated 3D trajectory (and ground-truth if
+                        available).
+```
+
+For example, using the `free_style` sequence,
+
+    $ python3 demo_vo_rgbd.py "PATH_TO_MY_SEQUENCE/free_style" --is_synthetic=false --hand_eye_transformation="PATH_TO_APPROXIMATED/rgbd_hand_eye_transformation.txt" --visualize_VO=true
+
+
+#### To run the VO demo with the single-camera SOS:
+
+```
+usage: demo_vo_sos.py [-h] [--calibrated_gums_file CALIBRATED_GUMS_FILE]
+                      sequence_path
+
+Demo of frame-to-frame visual odometry for the Single-camera SOS images
+collected for the vo_single_camera_sos project.
+
+positional arguments:
+  sequence_path         The path to the sequence where the omni folder is
+                        located.
+
+required arguments:
+  --calibrated_gums_file CALIBRATED_GUMS_FILE
+                        Indicates the complete path and name of the calibrated
+                        GUMS pickle file
+                        
+optional arguments:
+  --visualize_VO VISUALIZE_VO
+                        (Optional) Indicates whether to visualize the
+                        estimated 3D trajectory (and ground-truth if
+                        available).                        
+```
+
+For example, using the `free_style` sequence,
+
+    $ python3 demo_vo_sos.py "PATH_TO_MY_SEQUENCE/free_style" --calibrated_gums_file="PATH_TO_CALIBRATED_MODEL/gums-calibrated.pkl" --visualize_VO=true
+
+
+
+### Detailed Setup for OpenCV and OpenGV
 
 #### OpenCV 3
 
@@ -242,73 +300,3 @@ Once the Cmakefiles are *generated*, compile and install as usual:
     $ sudo ldconfig
     
 *NOTE*: I had to run `$ sudo ldconfig` for the `$ python3 -c "import pyopengv"` to work.
-
-### Running the Demos
-
-Navigate to the path where this project was cloned. Then, invoke `python3` with the following usages.
-
-#### To run the VO demo with the RGB-D camera:
-
-```
-usage: demo_vo_rgbd.py [-h] [--is_synthetic IS_SYNTHETIC]
-                       [--hand_eye_transformation HAND_EYE_TRANSFORMATION]
-                       sequence_path
-
-Demo of frame-to-frame visual odometry for the RGB-D images collected for the
-vo_single_camera_sos project.
-
-positional arguments:
-  sequence_path         The path to the sequence where the rgbd folders is
-                        located.
-
-required arguments:
-  --is_synthetic IS_SYNTHETIC
-                        Determines whether the data is real or synthetic. This
-                        is necessary to use the appropriate camera intrinsic
-                        parameters.
-
-optional arguments:
-  --hand_eye_transformation HAND_EYE_TRANSFORMATION
-                        (Optional) If real-life data, this indicates the
-                        complete path and name to hand-eye transformation file
-                        
-  --visualize_VO VISUALIZE_VO
-                        (Optional) Indicates whether to visualize the
-                        estimated 3D trajectory (and ground-truth if
-                        available).
-```
-
-For example, using the `free_style` sequence,
-
-    $ python3 demo_vo_rgbd.py "PATH_TO_MY_SEQUENCE/free_style" --is_synthetic=false --hand_eye_transformation="PATH_TO_APPROXIMATED/rgbd_hand_eye_transformation.txt" --visualize_VO=true
-
-
-#### To run the VO demo with the single-camera SOS:
-
-```
-usage: demo_vo_sos.py [-h] [--calibrated_gums_file CALIBRATED_GUMS_FILE]
-                      sequence_path
-
-Demo of frame-to-frame visual odometry for the Single-camera SOS images
-collected for the vo_single_camera_sos project.
-
-positional arguments:
-  sequence_path         The path to the sequence where the omni folder is
-                        located.
-
-required arguments:
-  --calibrated_gums_file CALIBRATED_GUMS_FILE
-                        Indicates the complete path and name of the calibrated
-                        GUMS pickle file
-                        
-optional arguments:
-  --visualize_VO VISUALIZE_VO
-                        (Optional) Indicates whether to visualize the
-                        estimated 3D trajectory (and ground-truth if
-                        available).                        
-```
-
-For example, using the `free_style` sequence,
-
-    $ python3 demo_vo_sos.py "PATH_TO_MY_SEQUENCE/free_style" --calibrated_gums_file="PATH_TO_CALIBRATED_MODEL/gums-calibrated.pkl" --visualize_VO=true
-
