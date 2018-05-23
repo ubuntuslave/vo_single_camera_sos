@@ -1709,11 +1709,11 @@ class OmniCamModel(object):
         if self.panorama.panoramic_img is not None:
             if median_win_size > 0:
                 pano_img = cv2.medianBlur(pano_img, median_win_size)
-            if feature_detection_method.upper() == "GFT":
+            if feature_detection_method.upper() == "GFT":  # or feature_detection_method.upper() == "FAST":
                 if pano_img.ndim == 3:  # GFT needs a grayscale image
-                    pano_img_detect_with_GFT = cv2.cvtColor(pano_img, cv2.COLOR_BGR2GRAY)
+                    pano_img = cv2.cvtColor(pano_img, cv2.COLOR_BGR2GRAY)
                 else:
-                    pano_img_detect_with_GFT = self.panorama.panoramic_img.copy()
+                    pano_img = self.panorama.panoramic_img.copy()
 
         #=======================================================================
 
@@ -1736,7 +1736,7 @@ class OmniCamModel(object):
                     #===========================================================
                     # start_GFT_time = process_time()
                     #===========================================================
-                    pts_GFT = cv2.goodFeaturesToTrack(image = pano_img_detect_with_GFT, maxCorners = num_of_features, qualityLevel = 0.01, minDistance = 5, mask = m, useHarrisDetector = useHarrisDetector)
+                    pts_GFT = cv2.goodFeaturesToTrack(image = pano_img, maxCorners = num_of_features, qualityLevel = 0.01, minDistance = 5, mask = m, useHarrisDetector = useHarrisDetector)
                     #===========================================================
                     # end_GFT_time = process_time()
                     # current_GFT_time = end_GFT_time - start_GFT_time
@@ -1775,7 +1775,7 @@ class OmniCamModel(object):
                     cv2.waitKey(1)
         else:
             if feature_detection_method.upper() == "GFT":
-                pts_GFT = cv2.goodFeaturesToTrack(image = pano_img_detect_with_GFT, maxCorners = num_of_features, qualityLevel = 0.01, minDistance = 5, mask = None, useHarrisDetector = useHarrisDetector)
+                pts_GFT = cv2.goodFeaturesToTrack(image = pano_img, maxCorners = num_of_features, qualityLevel = 0.01, minDistance = 5, mask = None, useHarrisDetector = useHarrisDetector)
                 keypts_detected = cv2.KeyPoint_convert(pts_GFT)
             else:
                 # keypts_detected_on_mask, descriptors_on_mask = detector.detectAndCompute(image=pano_img, mask=m)

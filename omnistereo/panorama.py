@@ -567,7 +567,7 @@ class Panorama(object):
             if end_angle >= 2.0 * np.pi:
                 pt2_u_coord = 0
             else:
-                pt2_u_coord = self.get_panorama_col_from_azimuth(azimuth = (end_angle))
+                pt2_u_coord = self.get_panorama_col_from_azimuth(azimuth = end_angle)
             mask = np.zeros((self.rows, self.cols), dtype = np.uint8)  # Black, single channel mask
             # Paint roi white
             cv2.rectangle(mask, pt1 = (pt1_u_coord, 0), pt2 = (pt2_u_coord, int(self.cols - 1)), color = (255, 255, 255), thickness = -1, lineType = 8, shift = 0)
@@ -695,7 +695,10 @@ class Panorama(object):
         '''
         azimuth_filtered = np.mod(azimuth, 2.0 * np.pi)  # Filter input azimuth so values are only positive angles between 0 and 2PI
         arc_length = self.cyl_radius * azimuth_filtered
-        col = np.uint(self.cols - 1 - np.uint(arc_length / self.pixel_size))
+        col_result = self.cols - 1 - np.uint(arc_length / self.pixel_size)
+        if col_result < 0:
+            col_result = 0
+        col = np.uint(col_result)
         return col
 
     def get_panorama_pixel_coords_from_direction_angles(self, theta, psi):

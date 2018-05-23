@@ -682,7 +682,7 @@ class TrackerSE3(object):
         #=======================================================================
 
         self.detection_method = "GFT"
-        self.matching_type = "BF"  # "BF" for brute force matching, or "FLANN" for matching vie the Fast Library for Approximate Nearest Neighbors
+        self.matching_type = "FLANN"  # "BF" for brute force matching, or "FLANN" for matching vie the Fast Library for Approximate Nearest Neighbors
         self.k_best_matches = 1  # To set the number of k nearest matches in the matcher
         self.percentage_good_matches = 1.0
         # For motion-stage matching:
@@ -698,7 +698,7 @@ class TrackerSE3(object):
         # TODO: we need to compute this statistically to determine the max_ransac_iterations
         # IDEA: adjust the number of iterations based on the statistics of outliers from history.
         #       Then, have a threshold of change for when to adjust this value
-        self.correspondences_outliers_fraction = 0.90  # Conservative value based on statistics from real data (the synthetic case could be just 0.60)
+        self.correspondences_outliers_fraction = 0.75  # RA-L was 90: Conservative value based on statistics from real data (the synthetic case could be just 0.60)
         self.max_ransac_iterations_3D_to_2D = -1  # With -1, it will be computed once initially
         # TODO: adjust the number of iterations based on the statistics of outliers from history.
         # IDEA: have a threshold of change to adjust this value
@@ -859,20 +859,20 @@ class TrackerStereoSE3(TrackerSE3):
         self.cam_rotations = np.array([rot_top_wrt_C, rot_bottom_wrt_C])
         # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-        self.num_features_detection_for_static_stereo = 100  # For each bucket (only applies to GFT)
+        self.num_features_detection_for_static_stereo = 500  # For each bucket (only applies to GFT) # Was 100 for RA-L paper
         self.omnistereo_model.feature_matcher_for_static_stereo = FeatureMatcher(method = self.detection_method, matcher_type = self.matching_type, k_best = self.k_best_matches, percentage_good_matches = self.percentage_good_matches, num_of_features = self.num_features_detection_for_static_stereo, use_radius_match = False)
 
         # FIXME: too arbitrary and it should become adaptive base on speed of motion
-        self.max_horizontal_diff_f2f_matches = 0.0625 * self.max_horizontal_search_ratio * self.omnistereo_model.top_model.panorama.cols  # use -1 for not constraints!
+        self.max_horizontal_diff_f2f_matches = 0.125 * self.max_horizontal_search_ratio * self.omnistereo_model.top_model.panorama.cols  # use -1 for not constraints!
         self.omnistereo_model.feature_matcher_for_motion = FeatureMatcher(method = self.detection_method, matcher_type = self.matching_type, k_best = self.k_best_matches, percentage_good_matches = self.percentage_good_matches, num_of_features = self.num_features_detection_for_motion, use_radius_match = self.use_descriptor_radius_match_for_motion)
 
         # Generate azimuthal masks on panoramas for "bucketting"
         show_azimuthal_masks = False
-        azimuth_mask_degrees = 10
+        azimuth_mask_degrees = 15  # Used 10 for RA-L experiments
         overlap_degrees = 0  # Useful, so we don't miss features located near the edge of the mask.
         first_stand_azimuthal_location = 50  # degrees
         stand_masks_azimuth_coord_in_degrees_list = [first_stand_azimuthal_location, first_stand_azimuthal_location + 120, first_stand_azimuthal_location + 240]
-        stand_masks_width_in_degrees = 3
+        stand_masks_width_in_degrees = 10
         self.omni_mask_extra_padding = 10
         self.omnistereo_model.top_model.panorama.generate_azimuthal_masks(azimuth_mask_degrees = azimuth_mask_degrees, overlap_degrees = overlap_degrees, show = show_azimuthal_masks, elev_mask_padding = self.omni_mask_extra_padding, stand_masks_azimuth_coord_in_degrees_list = stand_masks_azimuth_coord_in_degrees_list, stand_masks_width_in_degrees = stand_masks_width_in_degrees)
         self.omnistereo_model.bot_model.panorama.generate_azimuthal_masks(azimuth_mask_degrees = azimuth_mask_degrees, overlap_degrees = overlap_degrees, show = show_azimuthal_masks, elev_mask_padding = self.omni_mask_extra_padding, stand_masks_azimuth_coord_in_degrees_list = stand_masks_azimuth_coord_in_degrees_list, stand_masks_width_in_degrees = stand_masks_width_in_degrees)
@@ -956,6 +956,310 @@ class TrackerRGBDSE3(TrackerSE3):
     def bootstrap_tracker(self):
         self.camera_model.feature_matcher_for_motion = FeatureMatcher(method = self.detection_method, matcher_type = self.matching_type, k_best = self.k_best_matches, percentage_good_matches = self.percentage_good_matches, num_of_features = self.num_features_detection_for_motion, use_radius_match = self.use_descriptor_radius_match_for_motion)
         self.max_horizontal_diff_f2f_matches = self.max_horizontal_search_ratio * (self.camera_model.center_x * 2.)  # use -1 for not constraints!
+
+def run_VO_live(visualizer_3D_VO, camera_model, cam_working_thread, est_poses_filename = "estimated_frame_poses_TUM.txt", use_multithreads_for_VO = False, results_path = "~/temp", thread_name = ""):
+    from omnistereo.common_tools import save_as_tum_poses_to_file
+    from omnistereo.transformations import transform44_from_TUM_entry
+    from omnistereo.camera_models import OmniStereoModel, RGBDCamModel
+    if len(thread_name) > 0:
+        thread_name = thread_name + ": "
+    msg_exit = thread_name + "\n"
+    if isinstance(camera_model, OmniStereoModel):
+        trackerClass = TrackerStereoSE3
+        KeyFrameClass = StereoPanoramicKeyFrame
+    elif isinstance(camera_model, RGBDCamModel):
+        from omnistereo.common_cv import get_depthmap_float32_from_png
+        trackerClass = TrackerRGBDSE3
+        KeyFrameClass = RGBDKeyFrame
+
+    results_path = realpath(expanduser(results_path))
+    make_sure_path_exists(results_path)
+    print("%sSaving VO results at %s" % (thread_name, results_path))
+    messages_log_filename = join(results_path, "printed_messages.log")
+    messages_log_file = open(messages_log_filename, 'w')
+
+    # Let's use only meters to be consistent all throughout
+    do_tracking = True
+    save_frame_poses = True and do_tracking
+    show_gt_poses = True
+    show_3D_points = False
+    save_correspondence_images = True
+    use_uniform_color = True
+    is_outdoors = False  # <<<< SETME:
+    if is_outdoors:
+        pos_distance_keyframe_creation_threshold = 0.1  # in [m] Arbitrary threshold for keyframe creation based on displacement
+        pos_max_distance_keyframe_creation_threshold = 0.20  # in [m]
+        angle_keyframe_creation_threshold = np.deg2rad(1)  # Arbitrary threshold for keyframe creation based on rotation angle
+        angle_max_keyframe_creation_threshold = np.deg2rad(4.)  # Arbitrary threshold for keyframe creation based on rotation angle
+        threshold_tracked_correspondence_keyframe_creation = 0.10  # Arbitrary threshold for keyframe creation regarding the current number of tracked correspondences and the past average
+    else:
+        pos_distance_keyframe_creation_threshold = 0.05  # in [m] Arbitrary threshold for keyframe creation based on displacement
+        pos_max_distance_keyframe_creation_threshold = 0.50  # in [m]
+        angle_keyframe_creation_threshold = np.deg2rad(5.0)  # Arbitrary threshold for keyframe creation based on rotation angle
+        angle_max_keyframe_creation_threshold = np.deg2rad(60.0)  # Arbitrary threshold for keyframe creation based on rotation angle
+        threshold_tracked_correspondence_keyframe_creation = 0.10  # Arbitrary threshold for keyframe creation regarding the current number of tracked correspondences and the past average
+    threshold_keypoints_keyframe_creation = 0.10  # Arbitrary threshold for keyframe creation regarding the number of kpts_top on the current frame and the Keyframe.
+    axis_length = .5  # units are [m] for visualization context
+
+    tracker = trackerClass(camera_model = camera_model, show_3D_points = show_3D_points, save_correspondence_images = save_correspondence_images, results_path = results_path)
+
+    if save_frame_poses:
+        est_poses_filename = join(results_path, est_poses_filename)
+        est_poses_file = open(est_poses_filename, 'w')
+        keyframe_ids_filename = "keyframe_ids.txt"
+        keyframe_ids_filename = join(results_path, keyframe_ids_filename)
+        keyframe_ids_file = open(keyframe_ids_filename, 'w')
+
+    # Running multiple views (as visualizing all point clouds)
+    pts_pos = np.empty((0, 3))  # For 3D Visualization
+    if use_uniform_color:
+        pts_colors = []  # For 3D Visualization using the same color for a subset of points
+        # vvvvvvvvvvvvv COLORS vvvvvvvvvvvvvvvvvvvvvvvvvv
+        # chosen_colors = ('blue', 'magenta', 'green', 'red', 'cyan', 'orange', 'gray', 'brown', 'purple', 'pink')
+        # OR:
+        from  matplotlib.pyplot import get_cmap
+        cmap = get_cmap('rainbow')  # Example colormaps: 'jet' 'rainbow' 'gnuplot', See http://matplotlib.org/1.2.1/examples/pylab_examples/show_colormaps.html for more
+        num_of_colors_cmap = 1000  # TODO: change this to a number or just use the pts_colors below
+        chosen_colors = [cmap(i) for i in np.linspace(0, 1, num = num_of_colors_cmap)]
+        # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    else:
+        pts_colors = np.empty((0, 4))  # For 3D Visualization
+
+    reference_frame = None
+    keyframes_list = []
+    current_frame = None
+    create_keyframe = True
+    current_keyframe_id = 0
+    number_of_keyframes = 0
+    number_of_tracked_frames_wrt_keyframes = 0
+    num_tracked_correspondences_previous_average = 0
+
+    inliers_RANSAC_percentage_ratio = tracker.inlier_tracked_correspondences_ratio  # Statistics for the inlier correspondences from RANSAC computed it as a cumulative moving average
+
+    acc_time_img_read = 0.
+    acc_time_frame_setup = 0.
+    acc_time_frame_tracking = 0.
+    acc_time_keyframe_resolution = 0.
+    acc_time_keyframe_creation = 0.
+    acc_time_frame_vo_complete = 0.
+    success = True
+    img_index_number = 0
+    idx = 0
+
+    while success:
+        start_time_img_read = process_time()
+        if cam_working_thread.current_frame is not None and not cam_working_thread.quit_flag:
+            current_omni_img = cam_working_thread.current_frame
+            if cam_working_thread.cam.show_img:
+                cv2.imshow(cam_working_thread.cam.win_name, current_omni_img)
+        else:
+            break
+        end_time_img_read = process_time()
+        if img_index_number > 0:  # Don't count the first frame's time (just to make if more comparable with the other statistics
+            time_ellapsed_img_read = end_time_img_read - start_time_img_read
+            acc_time_img_read = acc_time_img_read + time_ellapsed_img_read
+            # ---------------------------------------------------
+
+        start_time_frame_vo = process_time()
+        if do_tracking:
+            # ATTENTION: be careful if generating panoramas here, the masks will be destroyed.
+            # ---------------------------------------------------
+            start_time_frame_setup = process_time()
+            if isinstance(camera_model, OmniStereoModel):
+                camera_model.set_current_omni_image(current_omni_img, generate_panoramas = False, view = False, apply_mask = True, mask_RGB = (0, 0, 0))  # Using Black pano mask
+                current_frame = StereoPanoramicFrame(stereo_camera_model = camera_model, frame_id = idx, parent_id = current_keyframe_id)
+            #===================================================================
+            # elif isinstance(camera_model, RGBDCamModel):
+            #     current_frame = RGBDFrame(rgbd_camera_model = camera_model, frame_id = idx, rgb_img = current_rgb_img, depth_map = current_depth_map, parent_id = current_keyframe_id)
+            #     # ^^^^ If rgb image and depth map is passed to the constructed, the kpts_top will be established at construction ^^^^^^, and also these images will be saved as members
+            #     # current_frame.establish_keypoints(rgb = current_rgb_img, depth = current_depth_map)
+            #===================================================================
+            end_time_frame_setup = process_time()
+            if img_index_number > 0:  # Don't count the first frame's time (just to make if more comparable with the other statistics
+                time_ellapsed_frame_setup = end_time_frame_setup - start_time_frame_setup
+                acc_time_frame_setup = acc_time_frame_setup + time_ellapsed_frame_setup
+            # ---------------------------------------------------
+
+        if img_index_number > 0:
+            if do_tracking:
+                # ---------------------------------------------------
+                start_time_frame_tracking = process_time()
+                # TRACK frame:
+                tracking_status, tracking_msg = tracker.track_frame(reference_frame = reference_frame, current_frame = current_frame)
+                if tracking_status:
+                    # NO NEED anymore: tracker.T_C_curr_frame_wrt_S_est[:3, 3] = tracker.T_C_curr_frame_wrt_S_est[:3, 3] * units_scale_factor
+                    reference_frame.children_ids.append(current_frame.frame_id)
+                    number_of_tracked_frames_wrt_keyframes += 1
+                else:
+                    # Tracking failed
+                    print(tracking_msg, file = messages_log_file)
+                    warn("%sWarning failed: %s" % (thread_name, tracking_msg))
+                    break
+
+                end_time_frame_tracking = process_time()
+                time_ellapsed_frame_tracking = end_time_frame_tracking - start_time_frame_tracking
+                acc_time_frame_tracking = acc_time_frame_tracking + time_ellapsed_frame_tracking
+                # ---------------------------------------------------
+
+                # ---------------------------------------------------
+                start_time_keyframe_resolution = process_time()
+
+                if visualizer_3D_VO is not None:
+                    text_at_origin_est = 'F%d' % (idx)
+                    visualizer_3D_VO.current_frame_axis_est, visualizer_3D_VO.current_frame_text_idx_est = visualizer_3D_VO.draw_current_frame(frame_axis = visualizer_3D_VO.current_frame_axis_est, frame_text_id = visualizer_3D_VO.current_frame_text_idx_est, T_C_wrt_S = tracker.T_C_curr_frame_wrt_S_est, text_at_origin = text_at_origin_est, text_color = "red", axis_length = axis_length, units_scale_factor = 1.0, axis_thickness = 5, axis_colors = None)
+
+                # Check keyframe creation if L2 distance to current keyframe has exceeded threshold:
+                current_frame_L2_dist_to_keyframe = tr.rpe_translation_metric(current_frame.T_frame_wrt_tracking_ref_frame)
+                current_frame_rot_angle_to_keyframe = tr.rpe_rotation_metric(current_frame.T_frame_wrt_tracking_ref_frame)
+                num_tracked_correspondences = tracker.num_tracked_correspondences / float(tracker.number_of_cams)  # N_i: we divide by No of cameras because we have those views combined and possible repeated keypoint matches
+                num_valid_reference_keypoints = reference_frame.num_valid_keypoints  # M_K
+                num_valid_tracking_keypoints = current_frame.num_valid_keypoints  # M_F
+
+                if (pos_distance_keyframe_creation_threshold < current_frame_L2_dist_to_keyframe < pos_max_distance_keyframe_creation_threshold) or (angle_keyframe_creation_threshold < current_frame_rot_angle_to_keyframe < angle_max_keyframe_creation_threshold):
+                    # or satisfying_candidates_keyframe_creation_correspondences_ratio:
+                    # if the number of kpts_top for the candidate frame is at least 50% of the current keyframe's number of kpts_top
+                    if num_tracked_correspondences > threshold_tracked_correspondence_keyframe_creation * num_tracked_correspondences_previous_average and num_valid_tracking_keypoints > threshold_keypoints_keyframe_creation * num_valid_reference_keypoints:
+                        msg_reason_keyframe_creation = ""
+                        if pos_distance_keyframe_creation_threshold < current_frame_L2_dist_to_keyframe < pos_max_distance_keyframe_creation_threshold:
+                            # Make sure that rotation is not crazy:
+                            if current_frame_rot_angle_to_keyframe < angle_max_keyframe_creation_threshold:
+                                msg_reason_keyframe_creation = msg_reason_keyframe_creation + "translation %.2f < %.4f < %.2f [m]" % (pos_distance_keyframe_creation_threshold, current_frame_L2_dist_to_keyframe, pos_max_distance_keyframe_creation_threshold)
+                                create_keyframe = True
+                        elif angle_keyframe_creation_threshold < current_frame_rot_angle_to_keyframe:
+                            # Make sure that translation is not crazy:
+                            if current_frame_L2_dist_to_keyframe < pos_max_distance_keyframe_creation_threshold < angle_max_keyframe_creation_threshold:
+                                msg_reason_keyframe_creation = msg_reason_keyframe_creation + " rotation: %.2f > %.2f [radians]" % (current_frame_rot_angle_to_keyframe, angle_keyframe_creation_threshold)
+                                create_keyframe = True
+                        if create_keyframe:
+                            msg_keyframe_creation = "%sFrame [%d] as Keyframe due to %s... with %d tracked keypoint correspondences after tracking %d frames" % (thread_name, idx, msg_reason_keyframe_creation, num_tracked_correspondences, number_of_tracked_frames_wrt_keyframes)
+                        else:
+                            msg_keyframe_creation = "%sFrame [%d] as failed to create Keyframe due to some CRAZYNESS" % (thread_name, idx)
+                    else:
+                        msg_keyframe_creation = "%sFrame [%d] as Keyframe...doesn't satisfy %d > %.2f * %.2f and %d > %.2f * %.2f" % (thread_name, idx, num_tracked_correspondences, threshold_tracked_correspondence_keyframe_creation, num_tracked_correspondences_previous_average, num_valid_tracking_keypoints, threshold_keypoints_keyframe_creation, num_valid_reference_keypoints)
+                    print(msg_keyframe_creation)
+                    print(msg_keyframe_creation, file = messages_log_file)
+                # Update current average:
+                num_tracked_correspondences_previous_average = (num_tracked_correspondences + (float(number_of_tracked_frames_wrt_keyframes) - 1.) * num_tracked_correspondences_previous_average) / float(number_of_tracked_frames_wrt_keyframes)
+                end_time_keyframe_resolution = process_time()
+                time_ellapsed_keyframe_resolution = end_time_keyframe_resolution - start_time_keyframe_resolution
+                acc_time_keyframe_resolution = acc_time_keyframe_resolution + time_ellapsed_keyframe_resolution
+                # Inlier point correspondences from RANSAC for statistics:
+                inliers_RANSAC_percentage_ratio = (tracker.inlier_tracked_correspondences_ratio + (float(img_index_number - 1)) * inliers_RANSAC_percentage_ratio) / float(img_index_number)
+                # ---------------------------------------------------
+
+        if do_tracking:
+            if create_keyframe:
+                number_of_tracked_frames_wrt_keyframes = 0
+                num_tracked_correspondences_previous_average = 0.
+                # ---------------------------------------------------
+                start_time_keyframe_creation = process_time()
+
+                reference_frame = KeyFrameClass(frame = current_frame)
+                current_keyframe_id = reference_frame.frame_id
+                print(current_keyframe_id, file = keyframe_ids_file)
+
+                keyframes_list.append(reference_frame)  # TODO: we should use a graph structure instead (like g2o)
+                if len(tracker.T_Ckey_wrt_S_est_list) > 0:
+                    T_C_curr_keyframe_wrt_S_est = tr.concatenate_matrices(tracker.T_Ckey_wrt_S_est_list[-1], reference_frame.T_frame_wrt_tracking_ref_frame)
+                else:
+                    T_C_curr_keyframe_wrt_S_est = tracker.T_C_curr_frame_wrt_S_est
+                tracker.T_Ckey_wrt_S_est_list.append(T_C_curr_keyframe_wrt_S_est)
+
+                end_time_keyframe_creation = process_time()
+                time_ellapsed_keyframe_creation = end_time_keyframe_creation - start_time_keyframe_creation
+                acc_time_keyframe_creation = acc_time_keyframe_creation + time_ellapsed_keyframe_creation
+                # ---------------------------------------------------
+
+                if visualizer_3D_VO is not None:
+                    # Twice longer axis and in "red" text
+                    # Too busy:
+                    #===========================================================
+                    # text_at_origin = 'K%d' % (idx)
+                    # visualizer_3D_VO.add_pose_keyframe(T_C_wrt_S = T_C_curr_keyframe_wrt_S_est, text_at_origin = text_at_origin, text_color = "red", axis_length = axis_length, units_scale_factor = 1.0, axis_thickness = 2)
+                    #===========================================================
+                    # just drawing the trajectory of the keyframes
+                    visualizer_3D_VO.add_pose_to_trajectory(T_C_wrt_S = T_C_curr_keyframe_wrt_S_est, units_scale_factor = 1.0, line_thickness = 2, trajectory_color = "red")
+
+                    if show_3D_points:  # Only showing the points of the keyframe
+                        # Get the following from the "query" which is the current frame being tracked
+                        # Only using the inlier points
+                        xyz_points_wrt_C = tracker.xyz_homo_points_wrt_C_inliers
+                        # TODO: not resolving for the individual colors yet
+                        # frame_tracked_colors_for_matches = correspondences_pano_list[frame_tracked_idx].random_colors_RGB[matched_query_indices_pano_top]
+                        # rgb_points = frame_tracked_colors_for_matches[indices_inliers]
+
+                        if len(xyz_points_wrt_C) > 0:
+                            points_wrt_S = np.einsum("ij, nj->ni", T_C_curr_keyframe_wrt_S_est, xyz_points_wrt_C)[..., :3]  # Only need the xyz coordinates to display in VisPy
+                            pts_pos = np.vstack((pts_pos, points_wrt_S))
+                            # fill in the point-cloud data (Colors are normalized from 0 to 1.0)
+                            if use_uniform_color:
+                                new_pts_colors = len(points_wrt_S) * [chosen_colors[img_index_number % len(chosen_colors)]]
+                                pts_colors = pts_colors + new_pts_colors
+                            else:
+                                rgb_points = tracker.rgb_points_inliers  # TODO: This doesn't exist yet
+                                new_pts_colors = np.hstack((rgb_points / 255., np.ones_like(rgb_points[..., 0, np.newaxis])))  # Adding alpha=1 channel
+                                pts_colors = np.vstack((pts_colors, new_pts_colors))
+
+                            visualizer_3D_VO.update_3D_cloud(pts_pos = pts_pos, pts_colors = pts_colors)
+
+                create_keyframe = False
+                number_of_keyframes = number_of_keyframes + 1
+
+            if save_frame_poses:
+                # Recall the order of the quaternion in the "transformation" module is [q_w, q_i, q_j, q_k]
+                q_est = tr.quaternion_from_matrix(matrix = tracker.T_C_curr_frame_wrt_S_est, isprecise = False)
+                t_est = tr.translation_from_matrix(matrix = tracker.T_C_curr_frame_wrt_S_est)
+                print(idx, t_est[0], t_est[1], t_est[2], q_est[1], q_est[2], q_est[3], q_est[0], sep = ' ', end = '\n', file = est_poses_file)
+
+        if img_index_number > 0:
+            end_time_frame_vo = process_time()
+            time_ellapsed_frame_vo = end_time_frame_vo - start_time_frame_vo
+            acc_time_frame_vo_complete = acc_time_frame_vo_complete + time_ellapsed_frame_vo
+
+        msg_tracking_frame_done = "%sDONE with F[%d] (Parent K[%d]). C.M.Avg. RANSAC inlier ratio = %.3f" % (thread_name, current_frame.frame_id, current_frame.parent_id, inliers_RANSAC_percentage_ratio)
+        print(msg_tracking_frame_done)
+        print(msg_tracking_frame_done, file = messages_log_file)
+
+        img_index_number += 1
+        idx += 1
+
+    msg_num_keyframes = "%sVO done with %d keyframes" % (thread_name, number_of_keyframes)
+    print(msg_num_keyframes)
+    msg_exit = msg_exit + "\n" + msg_num_keyframes
+
+    avg_time_ellapsed_img_read = acc_time_img_read / float(img_index_number)
+    msg_avg_time_ellapsed_img_read = "Image Read Avg Time: {time:.8f} seconds".format(time = avg_time_ellapsed_img_read)
+    avg_time_ellapsed_frame_setup = acc_time_frame_setup / float(img_index_number)
+    msg_avg_time_ellapsed_frame_setup = "Frame Setup Avg Time: {time:.8f} seconds".format(time = avg_time_ellapsed_frame_setup)
+    avg_time_ellapsed_frame_tracking = acc_time_frame_tracking / float(img_index_number)
+    msg_avg_time_ellapsed_frame_tracking = "Frame Tracking Avg Time: {time:.8f} seconds".format(time = avg_time_ellapsed_frame_tracking)
+    avg_time_ellapsed_keyframe_resolution = acc_time_keyframe_resolution / float(img_index_number)
+    msg_avg_time_ellapsed_keyframe_resolution = "KeyFrame Resolution Avg Time: {time:.8f} seconds".format(time = avg_time_ellapsed_keyframe_resolution)
+    avg_time_ellapsed_keyframe_creation = acc_time_keyframe_creation / float(number_of_keyframes)
+    msg_avg_time_ellapsed_keyframe_creation = "KeyFrame Creation Avg Time: {time:.8f} seconds".format(time = avg_time_ellapsed_keyframe_creation)
+    avg_time_ellapsed_frame_vo_complete = acc_time_frame_vo_complete / float(img_index_number)
+    msg_avg_time_ellapsed_frame_vo_complete = "Overall Frame VO Avg Time: {time:.8f} seconds".format(time = avg_time_ellapsed_frame_vo_complete)
+    msg_avg_times = msg_avg_time_ellapsed_img_read + "\n" + \
+                    msg_avg_time_ellapsed_frame_setup + "\n" + \
+                    msg_avg_time_ellapsed_frame_tracking + "\n" + \
+                    msg_avg_time_ellapsed_keyframe_resolution + "\n" + \
+                    msg_avg_time_ellapsed_keyframe_creation + "\n" + \
+                    msg_avg_time_ellapsed_frame_vo_complete + "\n"
+    print(msg_avg_times)
+    msg_exit = msg_exit + "\n" + msg_avg_times
+
+    if save_frame_poses:
+        est_poses_file.close()
+        msg_est_poses_file_saved = "Estimated poses in TUM format SAVED as " + est_poses_filename
+        print(msg_est_poses_file_saved)
+        msg_exit = msg_exit + "\n" + msg_est_poses_file_saved
+        keyframe_ids_file.close()
+        msg_kf_file_saved = "Keyframes (indices) SAVED as " + keyframe_ids_filename
+        print(msg_kf_file_saved)
+        msg_exit = msg_exit + "\n" + msg_kf_file_saved
+
+    print(msg_exit, file = messages_log_file)
+    messages_log_file.close()
 
 def run_VO(visualizer_3D_VO, camera_model, gt_poses_filename = None, est_poses_filename = "estimated_frame_poses_TUM.txt", img_filename_template = None, depth_filename_template = None, img_indices = [], use_multithreads_for_VO = False, results_path = "~/temp", thread_name = ""):
     from omnistereo.common_tools import get_poses_from_file, save_as_tum_poses_to_file
@@ -1361,7 +1665,7 @@ def run_VO(visualizer_3D_VO, camera_model, gt_poses_filename = None, est_poses_f
     print(msg_exit, file = messages_log_file)
     messages_log_file.close()
 
-def driver_VO(camera_model, scene_path, scene_path_vo_results, scene_img_filename_template, depth_filename_template, num_scene_images, visualize_VO = False, use_multithreads_for_VO = True, step_for_scene_images = 1, first_image_index = 0, last_image_index = -1, thread_name = ""):
+def driver_VO(camera_model, scene_path, path_vo_results, scene_img_filename_template, depth_filename_template, num_scene_images, visualize_VO = False, use_multithreads_for_VO = True, step_for_scene_images = 1, first_image_index = 0, last_image_index = -1, thread_name = ""):
     if use_multithreads_for_VO:  # Don't put time because assuming experimental batch
         est_poses_filename = "estimated_frame_poses_TUM.txt"
     else:
@@ -1404,7 +1708,7 @@ def driver_VO(camera_model, scene_path, scene_path_vo_results, scene_img_filenam
         vis_VO = DrawerVO(new_3D_entities_lock = visualization_thread_lock, title = "VO Visualization %s" % (thread_name), bgcolor = "white")
 
     # pt_cloud_args_dict = dict(visualizer_3D_VO=vis_VO, omnistereo_model=gums_calibrated, poses_filename=None, omni_img_filename_template=scene_img_filename_template, features_detected_filename_template=features_detected_filename_template, img_indices=vo_frame_indices, compute_new_3D_points=compute_new_3D_points, save_3D_points=save_3D_points, points_3D_path=points_3D_path, points_3D_filename_template=points_3D_filename_template, dense_cloud=dense_cloud, manual_point_selection=dense_manual_3D_point_selection, show_3D_reference_cyl=show_3D_reference_cyl, load_stereo_tuner_from_pickle=load_stereo_tuner_from_pickle, save_pcl=save_pcl, stereo_tuner_filename=stereo_tuner_filename, tune_live=tune_live, save_sparse_features=save_sparse_features, load_sparse_features_from_file=load_sparse_features_from_file, do_VO=do_VO, use_multithreads_for_VO=use_multithreads_for_VO)
-    vo_args_dict = dict(visualizer_3D_VO = vis_VO, camera_model = camera_model, gt_poses_filename = gt_poses_filename, est_poses_filename = est_poses_filename, img_filename_template = scene_img_filename_template, depth_filename_template = depth_filename_template, img_indices = vo_frame_indices, use_multithreads_for_VO = use_multithreads_for_VO, results_path = scene_path_vo_results, thread_name = thread_name)
+    vo_args_dict = dict(visualizer_3D_VO = vis_VO, camera_model = camera_model, gt_poses_filename = gt_poses_filename, est_poses_filename = est_poses_filename, img_filename_template = scene_img_filename_template, depth_filename_template = depth_filename_template, img_indices = vo_frame_indices, use_multithreads_for_VO = use_multithreads_for_VO, results_path = path_vo_results, thread_name = thread_name)
 
     if use_multithreads_for_VO:
         vo_thread = threading.Thread(target = run_VO, kwargs = vo_args_dict)
@@ -1422,4 +1726,65 @@ def driver_VO(camera_model, scene_path, scene_path_vo_results, scene_img_filenam
     # clean_up(wait_key_time = 1)
     #===========================================================================
     print("%s Done with VO for %s!" % (thread_name, scene_path))
+    return "NOTHING"
+
+def driver_VO_live(camera_model, path_vo_results, cam_working_thread, visualize_VO = False, use_multithreads_for_VO = True, thread_name = "LIVE"):
+    if use_multithreads_for_VO:  # Don't put time because assuming experimental batch
+        est_poses_filename = "estimated_frame_poses_TUM.txt"
+    else:
+        from datetime import datetime
+        now_info = datetime.now()
+        current_time_str = "%d-%d-%d-%d-%d-%d" % (now_info.year, now_info.month, now_info.day, now_info.hour, now_info.minute, now_info.second)
+        est_poses_filename = "estimated_frame_poses_TUM-%s.txt" % (current_time_str)
+    #=======================================================================
+    # if experiment_name == "VICON" and model_version == "new" and not is_synthetic:
+    #     # Checking that we start the prefix with a particular context word
+    #     if scene_prefix_filename.find("lab") == 0:
+    #         vo_frame_indices = [0, 1]
+    #     if scene_prefix_filename.find("home") == 0:
+    #         vo_frame_indices = []
+    #     if scene_prefix_filename.find("office") == 0:
+    #         vo_frame_indices = []
+    #=======================================================================
+    # else:
+
+    cam_working_thread.start()
+
+    from omnistereo.common_plot import DrawerVO
+
+    # 3D Visualization (Setup)
+    if visualize_VO:
+        from vispy import app
+    import threading
+    visualization_thread_lock = threading.Lock()  # TODO: use it
+    vis_VO = None
+    if visualize_VO:
+        vis_VO = DrawerVO(new_3D_entities_lock = visualization_thread_lock, title = "VO Visualization %s" % (thread_name), bgcolor = "white")
+
+    vo_live_args_dict = dict(visualizer_3D_VO = vis_VO, camera_model = camera_model, cam_working_thread = cam_working_thread, est_poses_filename = est_poses_filename, use_multithreads_for_VO = use_multithreads_for_VO, results_path = path_vo_results, thread_name = thread_name)
+
+    if use_multithreads_for_VO:
+        vo_thread = threading.Thread(target = run_VO_live, kwargs = vo_live_args_dict)
+        vo_thread.start()
+        if visualize_VO:
+            app.run()
+    else:
+        run_VO_live(**vo_live_args_dict)
+        if visualize_VO:
+            app.run()
+
+    # Shut down webcam thread
+    if cam_working_thread.cam.show_img:
+        # Destroy window
+        cv2.destroyWindow(cam_working_thread.cam.win_name)
+    cam_working_thread.quit_flag = True  # Indicate camera to stop capturing and quit
+    cam_working_thread.join()
+    if use_multithreads_for_VO:
+        vo_thread.join()
+    print("DONE")
+    #===========================================================================
+    # from omnistereo.common_cv import clean_up
+    # clean_up(wait_key_time = 1)
+    #===========================================================================
+    print("%s Done with LIVE VO!" % (thread_name))
     return "NOTHING"
