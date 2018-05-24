@@ -294,18 +294,18 @@ class StereoPanoramicFrame(object):
 
         self.total_time = 0.  # To be used with time statistics
 
-        self.median_win_size = 1  # Image processing applied before matching
+        self.median_win_size = 11  # Image processing applied before matching
         self.min_disp = 1  # for v-axis
         # for u-axis in order to filter vertically aligned features.
         # BECAREFUL, if the triangulation is not the midpoint method, then this should only be using exactly aligned matches on the same column
         if self.use_midpoint_triangulation:  # This is a constraint only for the top-2-bottom omnistereo
-            self.max_u_dist = 1.5
+            self.max_u_dist = 2.5
         else:
             self.max_u_dist = 0.5
         # For filtering triangulated points according to range
         conversion_factor_dummy = get_length_units_conversion_factor(input_units = "m", output_units = stereo_camera_model.units)
         self.min_range = 0.5 * conversion_factor_dummy  # written in [m] but converted to whatever the units expected for the model are
-        self.max_range = 20.0 * conversion_factor_dummy  # written in [m] but converted to whatever the units expected for the model are
+        self.max_range = 7.0 * conversion_factor_dummy  # written in [m] but converted to whatever the units expected for the model are
 
         # Eventually, we compute this:
         self.pano_correspondences = None
@@ -672,7 +672,7 @@ class TrackerSE3(object):
     def set_global_parameters_for_tracking(self):
         self.show_f2f_correspondences_initial = False
         self.show_f2f_correspondences_final = False
-        self.backprojection_score_threshold_3D_to_2D_in_degrees = 0.5  # used for filtering some points due to triangulation
+        self.backprojection_score_threshold_3D_to_2D_in_degrees = 5.  # RA-L used 0.5: used for filtering some points due to triangulation
         self.backprojection_score_threshold_3D_to_2D = 1.0 - np.cos(np.deg2rad(self.backprojection_score_threshold_3D_to_2D_in_degrees))
         #=======================================================================
         # self.use_midpoint_triangulation = True
@@ -682,7 +682,7 @@ class TrackerSE3(object):
         #=======================================================================
 
         self.detection_method = "GFT"
-        self.matching_type = "FLANN"  # "BF" for brute force matching, or "FLANN" for matching vie the Fast Library for Approximate Nearest Neighbors
+        self.matching_type = "BF"  # "BF" for brute force matching, or "FLANN" for matching vie the Fast Library for Approximate Nearest Neighbors
         self.k_best_matches = 1  # To set the number of k nearest matches in the matcher
         self.percentage_good_matches = 1.0
         # For motion-stage matching:
@@ -698,7 +698,7 @@ class TrackerSE3(object):
         # TODO: we need to compute this statistically to determine the max_ransac_iterations
         # IDEA: adjust the number of iterations based on the statistics of outliers from history.
         #       Then, have a threshold of change for when to adjust this value
-        self.correspondences_outliers_fraction = 0.75  # RA-L was 90: Conservative value based on statistics from real data (the synthetic case could be just 0.60)
+        self.correspondences_outliers_fraction = 0.65  # RA-L was 0.90: Conservative value based on statistics from real data (the synthetic case could be just 0.60)
         self.max_ransac_iterations_3D_to_2D = -1  # With -1, it will be computed once initially
         # TODO: adjust the number of iterations based on the statistics of outliers from history.
         # IDEA: have a threshold of change to adjust this value
@@ -859,7 +859,7 @@ class TrackerStereoSE3(TrackerSE3):
         self.cam_rotations = np.array([rot_top_wrt_C, rot_bottom_wrt_C])
         # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-        self.num_features_detection_for_static_stereo = 500  # For each bucket (only applies to GFT) # Was 100 for RA-L paper
+        self.num_features_detection_for_static_stereo = 1000  # For each bucket (only applies to GFT) # Was 100 for RA-L paper
         self.omnistereo_model.feature_matcher_for_static_stereo = FeatureMatcher(method = self.detection_method, matcher_type = self.matching_type, k_best = self.k_best_matches, percentage_good_matches = self.percentage_good_matches, num_of_features = self.num_features_detection_for_static_stereo, use_radius_match = False)
 
         # FIXME: too arbitrary and it should become adaptive base on speed of motion
@@ -868,7 +868,7 @@ class TrackerStereoSE3(TrackerSE3):
 
         # Generate azimuthal masks on panoramas for "bucketting"
         show_azimuthal_masks = False
-        azimuth_mask_degrees = 15  # Used 10 for RA-L experiments
+        azimuth_mask_degrees = 30  # Used 10 for RA-L experiments
         overlap_degrees = 0  # Useful, so we don't miss features located near the edge of the mask.
         first_stand_azimuthal_location = 50  # degrees
         stand_masks_azimuth_coord_in_degrees_list = [first_stand_azimuthal_location, first_stand_azimuthal_location + 120, first_stand_azimuthal_location + 240]
