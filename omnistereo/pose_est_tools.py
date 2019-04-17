@@ -1665,7 +1665,7 @@ def run_VO(visualizer_3D_VO, camera_model, gt_poses_filename = None, est_poses_f
     print(msg_exit, file = messages_log_file)
     messages_log_file.close()
 
-def driver_VO(camera_model, scene_path, path_vo_results, scene_img_filename_template, depth_filename_template, num_scene_images, visualize_VO = False, use_multithreads_for_VO = True, step_for_scene_images = 1, first_image_index = 0, last_image_index = -1, thread_name = ""):
+def driver_VO(camera_model, scene_path, scene_path_vo_results, scene_img_filename_template, depth_filename_template, num_scene_images, visualize_VO = False, use_multithreads_for_VO = True, step_for_scene_images = 1, first_image_index = 0, last_image_index = -1, thread_name = ""):
     if use_multithreads_for_VO:  # Don't put time because assuming experimental batch
         est_poses_filename = "estimated_frame_poses_TUM.txt"
     else:
@@ -1708,7 +1708,7 @@ def driver_VO(camera_model, scene_path, path_vo_results, scene_img_filename_temp
         vis_VO = DrawerVO(new_3D_entities_lock = visualization_thread_lock, title = "VO Visualization %s" % (thread_name), bgcolor = "white")
 
     # pt_cloud_args_dict = dict(visualizer_3D_VO=vis_VO, omnistereo_model=gums_calibrated, poses_filename=None, omni_img_filename_template=scene_img_filename_template, features_detected_filename_template=features_detected_filename_template, img_indices=vo_frame_indices, compute_new_3D_points=compute_new_3D_points, save_3D_points=save_3D_points, points_3D_path=points_3D_path, points_3D_filename_template=points_3D_filename_template, dense_cloud=dense_cloud, manual_point_selection=dense_manual_3D_point_selection, show_3D_reference_cyl=show_3D_reference_cyl, load_stereo_tuner_from_pickle=load_stereo_tuner_from_pickle, save_pcl=save_pcl, stereo_tuner_filename=stereo_tuner_filename, tune_live=tune_live, save_sparse_features=save_sparse_features, load_sparse_features_from_file=load_sparse_features_from_file, do_VO=do_VO, use_multithreads_for_VO=use_multithreads_for_VO)
-    vo_args_dict = dict(visualizer_3D_VO = vis_VO, camera_model = camera_model, gt_poses_filename = gt_poses_filename, est_poses_filename = est_poses_filename, img_filename_template = scene_img_filename_template, depth_filename_template = depth_filename_template, img_indices = vo_frame_indices, use_multithreads_for_VO = use_multithreads_for_VO, results_path = path_vo_results, thread_name = thread_name)
+    vo_args_dict = dict(visualizer_3D_VO = vis_VO, camera_model = camera_model, gt_poses_filename = gt_poses_filename, est_poses_filename = est_poses_filename, img_filename_template = scene_img_filename_template, depth_filename_template = depth_filename_template, img_indices = vo_frame_indices, use_multithreads_for_VO = use_multithreads_for_VO, results_path = scene_path_vo_results, thread_name = thread_name)
 
     if use_multithreads_for_VO:
         vo_thread = threading.Thread(target = run_VO, kwargs = vo_args_dict)
@@ -1728,7 +1728,7 @@ def driver_VO(camera_model, scene_path, path_vo_results, scene_img_filename_temp
     print("%s Done with VO for %s!" % (thread_name, scene_path))
     return "NOTHING"
 
-def driver_VO_live(camera_model, path_vo_results, cam_working_thread, visualize_VO = False, use_multithreads_for_VO = True, thread_name = "LIVE"):
+def driver_VO_live(camera_model, scene_path_vo_results, cam_working_thread, visualize_VO = False, use_multithreads_for_VO = True, thread_name = "LIVE"):
     if use_multithreads_for_VO:  # Don't put time because assuming experimental batch
         est_poses_filename = "estimated_frame_poses_TUM.txt"
     else:
@@ -1761,7 +1761,7 @@ def driver_VO_live(camera_model, path_vo_results, cam_working_thread, visualize_
     if visualize_VO:
         vis_VO = DrawerVO(new_3D_entities_lock = visualization_thread_lock, title = "VO Visualization %s" % (thread_name), bgcolor = "white")
 
-    vo_live_args_dict = dict(visualizer_3D_VO = vis_VO, camera_model = camera_model, cam_working_thread = cam_working_thread, est_poses_filename = est_poses_filename, use_multithreads_for_VO = use_multithreads_for_VO, results_path = path_vo_results, thread_name = thread_name)
+    vo_live_args_dict = dict(visualizer_3D_VO = vis_VO, camera_model = camera_model, cam_working_thread = cam_working_thread, est_poses_filename = est_poses_filename, use_multithreads_for_VO = use_multithreads_for_VO, results_path = scene_path_vo_results, thread_name = thread_name)
 
     if use_multithreads_for_VO:
         vo_thread = threading.Thread(target = run_VO_live, kwargs = vo_live_args_dict)

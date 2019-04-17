@@ -95,11 +95,11 @@ def main_sos_vo():
             mirror_images = get_images(calib_img_filename_template, indices_list = [0], show_images = False, return_names_only = False)
             use_existing_radial_bounds = True
             hyperbolic_model_theoretical = get_theoretical_OmniStereo(omni_img = mirror_images, radial_bounds_filename = radial_bounds_filename, theoretical_params_filename = theoretical_params_filename, model_version = model_version, is_synthetic = is_synthetic, use_existing_radial_bounds = use_existing_radial_bounds)
-            driver_VO_live(camera_model = hyperbolic_model_theoretical, path_vo_results = scene_path_vo_results, cam_working_thread = cam_working_thread, visualize_VO = visualize_VO, use_multithreads_for_VO = use_multithreads_for_VO, thread_name = vis_name)
+            driver_VO_live(camera_model = hyperbolic_model_theoretical, scene_path_vo_results = scene_path_vo_results, cam_working_thread = cam_working_thread, visualize_VO = visualize_VO, use_multithreads_for_VO = use_multithreads_for_VO, thread_name = vis_name)
         else:
             # Attempting to just load the calibrated GUMS model
             gums_calibrated = load_obj_from_pickle(gums_calibrated_filename)
-            driver_VO_live(camera_model = gums_calibrated, path_vo_results = scene_path_vo_results, cam_working_thread = cam_working_thread, visualize_VO = visualize_VO, use_multithreads_for_VO = use_multithreads_for_VO, thread_name = vis_name)
+            driver_VO_live(camera_model = gums_calibrated, scene_path_vo_results = scene_path_vo_results, cam_working_thread = cam_working_thread, visualize_VO = visualize_VO, use_multithreads_for_VO = use_multithreads_for_VO, thread_name = vis_name)
 
     from omnistereo.common_cv import clean_up
     clean_up(wait_key_time = 1)
