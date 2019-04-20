@@ -95,6 +95,11 @@ def main_sos_vo():
             print("Using 'theoretical' model for", vis_name)
             from omnistereo.cata_hyper_model import  get_theoretical_OmniStereo
             from omnistereo.common_cv import get_images
+            calib_img_filename_template = ""  # SETME: needs to pass the filename template
+            radial_bounds_filename = ""  # SETME: needs to pass the radial bounds file
+            theoretical_params_filename = ""  # SETME: needs to pass the theoretical parameters file
+            model_version = "new"
+            is_synthetic = False
             mirror_images = get_images(calib_img_filename_template, indices_list = [0], show_images = False, return_names_only = False)
             use_existing_radial_bounds = True
             hyperbolic_model_theoretical = get_theoretical_OmniStereo(omni_img = mirror_images, radial_bounds_filename = radial_bounds_filename, theoretical_params_filename = theoretical_params_filename, model_version = model_version, is_synthetic = is_synthetic, use_existing_radial_bounds = use_existing_radial_bounds)

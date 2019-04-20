@@ -957,7 +957,7 @@ class TrackerRGBDSE3(TrackerSE3):
         self.camera_model.feature_matcher_for_motion = FeatureMatcher(method = self.detection_method, matcher_type = self.matching_type, k_best = self.k_best_matches, percentage_good_matches = self.percentage_good_matches, num_of_features = self.num_features_detection_for_motion, use_radius_match = self.use_descriptor_radius_match_for_motion)
         self.max_horizontal_diff_f2f_matches = self.max_horizontal_search_ratio * (self.camera_model.center_x * 2.)  # use -1 for not constraints!
 
-def run_VO_live(visualizer_3D_VO, camera_model, cam_working_thread, est_poses_filename = "estimated_frame_poses_TUM.txt", use_multithreads_for_VO = False, results_path = "~/temp", thread_name = ""):
+def run_VO_live(visualizer_3D_VO, camera_model, cam_working_thread, est_poses_filename = "estimated_frame_poses_TUM.txt", results_path = "~/temp", thread_name = ""):
     from omnistereo.common_tools import save_as_tum_poses_to_file
     from omnistereo.transformations import transform44_from_TUM_entry
     from omnistereo.camera_models import OmniStereoModel, RGBDCamModel
@@ -1261,7 +1261,7 @@ def run_VO_live(visualizer_3D_VO, camera_model, cam_working_thread, est_poses_fi
     print(msg_exit, file = messages_log_file)
     messages_log_file.close()
 
-def run_VO(visualizer_3D_VO, camera_model, gt_poses_filename = None, est_poses_filename = "estimated_frame_poses_TUM.txt", img_filename_template = None, depth_filename_template = None, img_indices = [], use_multithreads_for_VO = False, results_path = "~/temp", thread_name = ""):
+def run_VO(visualizer_3D_VO, camera_model, gt_poses_filename = None, est_poses_filename = "estimated_frame_poses_TUM.txt", img_filename_template = None, depth_filename_template = None, img_indices = [], results_path = "~/temp", thread_name = ""):
     from omnistereo.common_tools import get_poses_from_file, save_as_tum_poses_to_file
     from omnistereo.common_cv import get_images
     from omnistereo.transformations import transform44_from_TUM_entry
@@ -1403,6 +1403,7 @@ def run_VO(visualizer_3D_VO, camera_model, gt_poses_filename = None, est_poses_f
     number_of_tracked_frames_wrt_keyframes = 0
     num_tracked_correspondences_previous_average = 0
 
+    acc_inlier_tracked_correspondences_ratio = 0
     inliers_RANSAC_percentage_ratio = tracker.inlier_tracked_correspondences_ratio  # Statistics for the inlier correspondences from RANSAC computed it as a cumulative moving average
 
     acc_time_img_read = 0.
@@ -1411,6 +1412,7 @@ def run_VO(visualizer_3D_VO, camera_model, gt_poses_filename = None, est_poses_f
     acc_time_keyframe_resolution = 0.
     acc_time_keyframe_creation = 0.
     acc_time_frame_vo_complete = 0.
+    acc_num_tracked_correspondences = 0.
     for img_index_number, idx in enumerate(img_indices):
         # TEST: just using the same image hack
         # vvvvvvvvvvvvvvvvvvvvvvvvvvvv
@@ -1507,6 +1509,7 @@ def run_VO(visualizer_3D_VO, camera_model, gt_poses_filename = None, est_poses_f
                 current_frame_L2_dist_to_keyframe = tr.rpe_translation_metric(current_frame.T_frame_wrt_tracking_ref_frame)
                 current_frame_rot_angle_to_keyframe = tr.rpe_rotation_metric(current_frame.T_frame_wrt_tracking_ref_frame)
                 num_tracked_correspondences = tracker.num_tracked_correspondences / float(tracker.number_of_cams)  # N_i: we divide by No of cameras because we have those views combined and possible repeated keypoint matches
+                acc_num_tracked_correspondences += num_tracked_correspondences
                 num_valid_reference_keypoints = reference_frame.num_valid_keypoints  # M_K
                 num_valid_tracking_keypoints = current_frame.num_valid_keypoints  # M_F
 
@@ -1539,6 +1542,7 @@ def run_VO(visualizer_3D_VO, camera_model, gt_poses_filename = None, est_poses_f
                 time_ellapsed_keyframe_resolution = end_time_keyframe_resolution - start_time_keyframe_resolution
                 acc_time_keyframe_resolution = acc_time_keyframe_resolution + time_ellapsed_keyframe_resolution
                 # Inlier point correspondences from RANSAC for statistics:
+                acc_inlier_tracked_correspondences_ratio = acc_inlier_tracked_correspondences_ratio + tracker.inlier_tracked_correspondences_ratio
                 inliers_RANSAC_percentage_ratio = (tracker.inlier_tracked_correspondences_ratio + (float(img_index_number - 1)) * inliers_RANSAC_percentage_ratio) / float(img_index_number)
                 # ---------------------------------------------------
 
@@ -1639,12 +1643,20 @@ def run_VO(visualizer_3D_VO, camera_model, gt_poses_filename = None, est_poses_f
     msg_avg_time_ellapsed_keyframe_creation = "KeyFrame Creation Avg Time: {time:.8f} seconds".format(time = avg_time_ellapsed_keyframe_creation)
     avg_time_ellapsed_frame_vo_complete = acc_time_frame_vo_complete / float(img_index_number)
     msg_avg_time_ellapsed_frame_vo_complete = "Overall Frame VO Avg Time: {time:.8f} seconds".format(time = avg_time_ellapsed_frame_vo_complete)
+    msg_acc_num_tracked_correspondences = "Total Number of tracked correspondences: {corrs}".format(corrs = int(acc_num_tracked_correspondences))
+    avg_num_tracked_correspondences = int(acc_num_tracked_correspondences) / img_index_number
+    msg_avg_num_tracked_correspondences = "Average Number of tracked correspondences: {corrs}".format(corrs = int(avg_num_tracked_correspondences))
+    avg_inlier_tracked_correspondences_ratio = acc_inlier_tracked_correspondences_ratio / float(img_index_number)
+    msg_avg_inlier_tracked_correspondences_ratio = "Average tracked correspondences RANSAC inlier ratio: {ratio:.8f}".format(ratio = avg_inlier_tracked_correspondences_ratio)
     msg_avg_times = msg_avg_time_ellapsed_img_read + "\n" + \
                     msg_avg_time_ellapsed_frame_setup + "\n" + \
                     msg_avg_time_ellapsed_frame_tracking + "\n" + \
                     msg_avg_time_ellapsed_keyframe_resolution + "\n" + \
                     msg_avg_time_ellapsed_keyframe_creation + "\n" + \
-                    msg_avg_time_ellapsed_frame_vo_complete + "\n"
+                    msg_avg_time_ellapsed_frame_vo_complete + "\n" + \
+                    msg_acc_num_tracked_correspondences + "\n" + \
+                    msg_avg_num_tracked_correspondences + "\n" + \
+                    msg_avg_inlier_tracked_correspondences_ratio + "\n"
     print(msg_avg_times)
     msg_exit = msg_exit + "\n" + msg_avg_times
 
@@ -1708,7 +1720,7 @@ def driver_VO(camera_model, scene_path, scene_path_vo_results, scene_img_filenam
         vis_VO = DrawerVO(new_3D_entities_lock = visualization_thread_lock, title = "VO Visualization %s" % (thread_name), bgcolor = "white")
 
     # pt_cloud_args_dict = dict(visualizer_3D_VO=vis_VO, omnistereo_model=gums_calibrated, poses_filename=None, omni_img_filename_template=scene_img_filename_template, features_detected_filename_template=features_detected_filename_template, img_indices=vo_frame_indices, compute_new_3D_points=compute_new_3D_points, save_3D_points=save_3D_points, points_3D_path=points_3D_path, points_3D_filename_template=points_3D_filename_template, dense_cloud=dense_cloud, manual_point_selection=dense_manual_3D_point_selection, show_3D_reference_cyl=show_3D_reference_cyl, load_stereo_tuner_from_pickle=load_stereo_tuner_from_pickle, save_pcl=save_pcl, stereo_tuner_filename=stereo_tuner_filename, tune_live=tune_live, save_sparse_features=save_sparse_features, load_sparse_features_from_file=load_sparse_features_from_file, do_VO=do_VO, use_multithreads_for_VO=use_multithreads_for_VO)
-    vo_args_dict = dict(visualizer_3D_VO = vis_VO, camera_model = camera_model, gt_poses_filename = gt_poses_filename, est_poses_filename = est_poses_filename, img_filename_template = scene_img_filename_template, depth_filename_template = depth_filename_template, img_indices = vo_frame_indices, use_multithreads_for_VO = use_multithreads_for_VO, results_path = scene_path_vo_results, thread_name = thread_name)
+    vo_args_dict = dict(visualizer_3D_VO = vis_VO, camera_model = camera_model, gt_poses_filename = gt_poses_filename, est_poses_filename = est_poses_filename, img_filename_template = scene_img_filename_template, depth_filename_template = depth_filename_template, img_indices = vo_frame_indices, results_path = scene_path_vo_results, thread_name = thread_name)
 
     if use_multithreads_for_VO:
         vo_thread = threading.Thread(target = run_VO, kwargs = vo_args_dict)
@@ -1761,7 +1773,7 @@ def driver_VO_live(camera_model, scene_path_vo_results, cam_working_thread, visu
     if visualize_VO:
         vis_VO = DrawerVO(new_3D_entities_lock = visualization_thread_lock, title = "VO Visualization %s" % (thread_name), bgcolor = "white")
 
-    vo_live_args_dict = dict(visualizer_3D_VO = vis_VO, camera_model = camera_model, cam_working_thread = cam_working_thread, est_poses_filename = est_poses_filename, use_multithreads_for_VO = use_multithreads_for_VO, results_path = scene_path_vo_results, thread_name = thread_name)
+    vo_live_args_dict = dict(visualizer_3D_VO = vis_VO, camera_model = camera_model, cam_working_thread = cam_working_thread, est_poses_filename = est_poses_filename, results_path = scene_path_vo_results, thread_name = thread_name)
 
     if use_multithreads_for_VO:
         vo_thread = threading.Thread(target = run_VO_live, kwargs = vo_live_args_dict)
