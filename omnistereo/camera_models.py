@@ -37,7 +37,6 @@ Tools for omnidirectional stereo vision using catadioptrics
 
 from __future__ import division
 from __future__ import print_function
-import omnistereo.euclid as euclid
 import numpy as np
 import cv2
 from time import process_time
@@ -52,6 +51,8 @@ def intersect_line3_with_plane_vectorized(line, plane):
             When a line is parallel to the plane, there's no intersection, so resulting coordinates are indicated by a Not a Number (nan) values.
             For example, it could return [[i1.x, i1.y, i1.z], [nan, nan, nan], [i3.x, i3.y, i3.z]] for 3 lines, where the second line doesn't intersect the plane.
     '''
+    import omnistereo.euclid as euclid
+
     if isinstance(line, euclid.Line3):
         line_dir_vec_np = np.array(line.v)
         line_point_np = np.array(line.p)
@@ -95,6 +96,8 @@ def ortho_project_point3_onto_plane(point, plane):
             When a line is parallel to the plane, there's no intersection, so resulting coordinates are indicated by a Not a Number (nan) values.
             For example, it could return [[i1.x, i1.y, i1.z], [nan, nan, nan], [i3.x, i3.y, i3.z]] for 3 lines, where the second line doesn't intersect the plane.
     '''
+    import omnistereo.euclid as euclid
+
     if isinstance(point, euclid.Point3):
         p = np.array(point)
     elif isinstance(point, np.ndarray):
@@ -138,6 +141,7 @@ def intersect_line3_with_sphere_vectorized(line, sphere = None):
     @return The ndarray of the intersection coordinates with one ndarray per intersection, such that you get a matrix shape as [m,n,6],
             where the first 3 values [row,col, :3] for each entry [row,col] are the coordinates of the first point intersection, and [row,col, 3:] is for the second point.
     '''
+    import omnistereo.euclid as euclid
 
     if isinstance(line, euclid.Line3):
         line_point_np = np.array(line.p)
@@ -215,6 +219,8 @@ def get_lines_through_single_point3(point1, point2):
     @param point2: An Euclid Point3 or a row-vector point2 defined as [p.x,p.y,p.z], which is crossed by the lines passing by point1 with coordinates x, y, z.
     @return Line(s) from (a single or several) point1 directed toward the point2.
     '''
+    import omnistereo.euclid as euclid
+
     if isinstance(point1, euclid.Point3):
         point1_as_np = np.array(point1)
     elif isinstance(point1, np.ndarray):
@@ -1703,11 +1709,11 @@ class OmniCamModel(object):
         if self.panorama.panoramic_img is not None:
             if median_win_size > 0:
                 pano_img = cv2.medianBlur(pano_img, median_win_size)
-            if feature_detection_method.upper() == "GFT":
+            if feature_detection_method.upper() == "GFT":  # or feature_detection_method.upper() == "FAST":
                 if pano_img.ndim == 3:  # GFT needs a grayscale image
-                    pano_img_detect_with_GFT = cv2.cvtColor(pano_img, cv2.COLOR_BGR2GRAY)
+                    pano_img = cv2.cvtColor(pano_img, cv2.COLOR_BGR2GRAY)
                 else:
-                    pano_img_detect_with_GFT = self.panorama.panoramic_img.copy()
+                    pano_img = self.panorama.panoramic_img.copy()
 
         #=======================================================================
 
@@ -1730,7 +1736,7 @@ class OmniCamModel(object):
                     #===========================================================
                     # start_GFT_time = process_time()
                     #===========================================================
-                    pts_GFT = cv2.goodFeaturesToTrack(image = pano_img_detect_with_GFT, maxCorners = num_of_features, qualityLevel = 0.01, minDistance = 5, mask = m, useHarrisDetector = useHarrisDetector)
+                    pts_GFT = cv2.goodFeaturesToTrack(image = pano_img, maxCorners = num_of_features, qualityLevel = 0.01, minDistance = 5, mask = m, useHarrisDetector = useHarrisDetector)
                     #===========================================================
                     # end_GFT_time = process_time()
                     # current_GFT_time = end_GFT_time - start_GFT_time
@@ -1769,7 +1775,7 @@ class OmniCamModel(object):
                     cv2.waitKey(1)
         else:
             if feature_detection_method.upper() == "GFT":
-                pts_GFT = cv2.goodFeaturesToTrack(image = pano_img_detect_with_GFT, maxCorners = num_of_features, qualityLevel = 0.01, minDistance = 5, mask = None, useHarrisDetector = useHarrisDetector)
+                pts_GFT = cv2.goodFeaturesToTrack(image = pano_img, maxCorners = num_of_features, qualityLevel = 0.01, minDistance = 5, mask = None, useHarrisDetector = useHarrisDetector)
                 keypts_detected = cv2.KeyPoint_convert(pts_GFT)
             else:
                 # keypts_detected_on_mask, descriptors_on_mask = detector.detectAndCompute(image=pano_img, mask=m)

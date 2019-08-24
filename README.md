@@ -5,9 +5,13 @@ Proof of concept of the visual odometry (VO) application via a single-camera cat
 - **Author**: Carlos Jaramillo
 - **Contact**: <omnistereo@gmail.com>
 
-*Copyright (C)* 2018 under the *Gnu Public License version 3 (GPL3)*
+*Copyright (C)* 2019 under the *Gnu Public License version 3 (GPL3)*
 
 **WARNING**: This code is at an experimental stage, and has only been tested under **Python 3.6**  on   **Mac OS X 10.12.6 (Sierra)**
+
+## Data Sets
+
+The data sets associated with this project can be downloaded from the [Datasets Section](https://ubuntuslave.github.io/project/vo_sos/#datasets).
 
 ## Software Requirements
 
