@@ -36,7 +36,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-from omnistereo.camera_models import OmniCamModel, OmniStereoModel, CamParams
+from omnistereo.camera_models import OmniCamModel, OmniStereoModel
 from omnistereo.common_tools import convert_steradian_to_radian, convert_resolution_units
 
 class HyperCataStereo(OmniStereoModel):

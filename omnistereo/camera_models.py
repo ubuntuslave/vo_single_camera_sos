@@ -2830,7 +2830,7 @@ class OmniStereoModel(object):
                 self.bot_model.panorama.set_panoramic_image(omni_img = omni_img_bot, idx = idx, view = True, win_name_modifier = win_name_modifier, border_RGB_color = border_RGB_color)
             except:
                 warnings.warn("Panorama (Pair) index %d problem in %s" % (idx, __name__))
-
+        # TODO [performance]: can be sped up with threads?
         pano_img_top = self.top_model.panorama.set_panoramic_image(omni_img_top, idx, view, win_name_modifier, border_RGB_color = border_RGB_color)
         pano_img_bot = self.bot_model.panorama.set_panoramic_image(omni_img_bot, idx, view, win_name_modifier, border_RGB_color = border_RGB_color)
         return pano_img_top, pano_img_bot
