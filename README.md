@@ -21,6 +21,7 @@ The data sets associated with this project can be downloaded from the [Datasets 
 - Matplotlib
 - Vispy
       - PyQt5
+      - PyQt6: `python3 -m pip install PyQt6`
   
 - Scipy (Optional, for GUMS calibration)
   
@@ -191,36 +192,13 @@ Then, compile OpenCV 3, and install as usual:
     $ make install
 
 
-###### In Ubuntu Linux
+###### In Ubuntu Linux (Tested on 22.04)
 
-In Ubuntu 16.04, using the `ros-kinetic-opencv3` version and workaround to use it with `python3`:
-
-1) Install OpenCV3 for ROS:
-
-    $ sudo apt-get install ros-kinetic-opencv3
-
-2) Install python3 versions of rospkg and catkin 
-    
-    $ sudo -H pip3 install rospkg catkin_pkg
+Install OpenCV with Python 3 support:
+- `python3 -m pip install opencv-contrib-python`
+- Then, check with `python3 -c "import cv2; print(cv2.__version__)"`
 
 
-**NOTE for Python3**: Once the usual `ros-kinetic-opencv3` package is installed and working for python2.7, you can get it working in python3 by *removing the catkin* sourced in the `.bashrc` file. Otherwise, just adjust your IDE not to have the ROS python paths for the `$PYTHONPATH`.
-
-In other words:
-
-  - Problems are caused by ROS adding /opt/ros/kinetic/lib/python2.7/dist-packages to the `$PYTHONPATH`. This actually happens when you activate ROS with the command `source /opt/ros/kinetic/setup.bash`. This line is often added at the end of your `.bashrc` file, in `/home/username/.bashrc`.
-
-  - A **workaround** is to remove this line from the bashrc file. This way the `python3` `opencv` packages will be correctly used, and you can still run `source /opt/ros/kinetic/setup.bash` to use ROS. However, this does mean **you cannot use ROS and python3 from the same environment**.
-
-
-3) You need to install the following module via `pip3`:
-
-    $ sudo -H pip3 install opencv-python
-
-3) Test OpenCV under python3:
-
-    $ python3 
-    >>> import cv2
     
     
 #### OpenGV (for Visual Odometry):
@@ -257,7 +235,9 @@ Clone the fork from [opengv](https://github.com/ubuntuslave/opengv.git) because 
     $ cd opengv
     $ git checkout non_central-python
     $ cd .. && mkdir opengv-build && cd opengv-build
-    
+
+**NOTE:** on newer versions of **Boost** (e.g., >= `1.83.0`), the old `boost::python::numeric` API has changed and support for Numpy has been migrated to use `pybind`. Use branch `non_central-python-new_boost_python_numpy2` instead.
+
 Now build the project, making sure 
 
 - The correct paths for *Python* get selected, and

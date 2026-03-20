@@ -234,11 +234,11 @@ def match_features_frame_to_frame(cam_model, train_kpts, train_desc, query_kpts,
         # CHECKME: Do we weed to take care of the margins (left and right) that wrap around. Write another function that fulfills this requirement.
         # TODO: pass the m coordinates already computed in the PanoramicCorrespondences class!
         if keypts_as_points_train is None:
-            keypts_as_points_train = cv2.KeyPoint_convert(matched_kpts_train_all).astype(np.float)
+            keypts_as_points_train = cv2.KeyPoint_convert(matched_kpts_train_all).astype(np.float64)
         else:
             keypts_as_points_train = keypts_as_points_train[matched_train_indices_all]
         if keypts_as_points_query is None:
-            keypts_as_points_query = cv2.KeyPoint_convert(matched_kpts_query_all).astype(np.float)
+            keypts_as_points_query = cv2.KeyPoint_convert(matched_kpts_query_all).astype(np.float64)
         else:
             keypts_as_points_query = keypts_as_points_query[matched_query_indices_all]
 
@@ -542,7 +542,12 @@ class RGBDFrame(object):
         #=======================================================================
         if feature_detection_method.upper() == "GFT":
             pts_GFT = cv2.goodFeaturesToTrack(image = img_detect_with_GFT, maxCorners = num_of_features, qualityLevel = 0.01, minDistance = 5, mask = mask, useHarrisDetector = useHarrisDetector)
-            keypts_detected_on_mask = cv2.KeyPoint_convert(pts_GFT)
+            if pts_GFT is None or len(pts_GFT) == 0:
+                keypts_detected_on_mask = []
+            else:
+                # OpenCV >= 4.13 can be strict about Nx1x2 outputs from goodFeaturesToTrack
+                pts_GFT = np.asarray(pts_GFT, dtype = np.float32).reshape(-1, 2)
+                keypts_detected_on_mask = cv2.KeyPoint_convert(pts_GFT)
         else:
             keypts_detected_on_mask = detector.detect(image = img, mask = mask)
         #=======================================================================
@@ -1677,6 +1682,42 @@ def run_VO(visualizer_3D_VO, camera_model, gt_poses_filename = None, est_poses_f
     print(msg_exit, file = messages_log_file)
     messages_log_file.close()
 
+def _setup_vispy_app_for_visualization(thread_name = ""):
+    from vispy import app
+    import os
+
+    preferred_backend = os.environ.get("VISPY_BACKEND", "").strip()
+    candidate_backends = [preferred_backend] if len(preferred_backend) > 0 else ["pyqt6", "pyside6", "pyqt5", "pyside2", "glfw", "sdl2", "pyglet", "tkinter", "qt5", "egl"]
+
+    selected_backend = "unknown"
+    selected_app = None
+
+    for backend in candidate_backends:
+        try:
+            selected_app = app.use_app(backend)
+            selected_backend = str(getattr(selected_app, "backend_name", backend))
+            break
+        except Exception:
+            continue
+
+    if selected_app is None:
+        try:
+            selected_app = app.use_app()
+            selected_backend = str(getattr(selected_app, "backend_name", "unknown"))
+        except Exception:
+            selected_backend = "unknown"
+
+    backend_name = selected_backend
+    if len(thread_name) > 0:
+        prefix = thread_name + ": "
+    else:
+        prefix = ""
+    print("%sVisPy backend: %s" % (prefix, backend_name))
+    if "egl" in backend_name.lower():
+        warn("%sVisPy is using EGL backend; visualization may be offscreen. Install an onscreen backend (for example PyQt5 or GLFW) or set VISPY_BACKEND." % (prefix))
+
+    return app
+
 def driver_VO(camera_model, scene_path, scene_path_vo_results, scene_img_filename_template, depth_filename_template, num_scene_images, visualize_VO = False, use_multithreads_for_VO = True, step_for_scene_images = 1, first_image_index = 0, last_image_index = -1, thread_name = ""):
     if use_multithreads_for_VO:  # Don't put time because assuming experimental batch
         est_poses_filename = "estimated_frame_poses_TUM.txt"
@@ -1708,11 +1749,13 @@ def driver_VO(camera_model, scene_path, scene_path_vo_results, scene_img_filenam
         last_image_index = num_scene_images
     vo_frame_indices = list(range(first_image_index, last_image_index, step_for_scene_images))
 
+    app = None
+    if visualize_VO:
+        app = _setup_vispy_app_for_visualization(thread_name = thread_name)
+
     from omnistereo.common_plot import DrawerVO
 
     # 3D Visualization (Setup)
-    if visualize_VO:
-        from vispy import app
     import threading
     visualization_thread_lock = threading.Lock()  # TODO: use it
     vis_VO = None
@@ -1762,11 +1805,13 @@ def driver_VO_live(camera_model, scene_path_vo_results, cam_working_thread, visu
 
     cam_working_thread.start()
 
+    app = None
+    if visualize_VO:
+        app = _setup_vispy_app_for_visualization(thread_name = thread_name)
+
     from omnistereo.common_plot import DrawerVO
 
     # 3D Visualization (Setup)
-    if visualize_VO:
-        from vispy import app
     import threading
     visualization_thread_lock = threading.Lock()  # TODO: use it
     vis_VO = None

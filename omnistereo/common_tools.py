@@ -256,8 +256,11 @@ def flatten(x):
     '''
     Iteratively flattens the elements of a list of lists (or any other iterable such as tuples)
     '''
-    import collections
-    if isinstance(x, collections.Iterable):
+    try:
+        from collections.abc import Iterable
+    except ImportError:
+        from collections import Iterable
+    if isinstance(x, Iterable):
         return [a for i in x for a in flatten(i)]
     else:
         return [x]

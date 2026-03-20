@@ -334,7 +334,7 @@ class PanoramicCorrespondences(object):
         # Pixel coordinates
         if m_top_array is None or len(m_top_array) == 0:
             if len(self.kpts_top) > 0:
-                self.m_top = cv2.KeyPoint_convert(self.kpts_top).astype(np.float)
+                self.m_top = cv2.KeyPoint_convert(self.kpts_top).astype(np.float64)
                 # Add the ones for the point list in homogeneous coordinates
                 self.m_top = np.hstack((self.m_top, np.ones_like(self.m_top[..., 0, np.newaxis])))  # Adding a 1
             else:
@@ -344,7 +344,7 @@ class PanoramicCorrespondences(object):
 
         if m_bot_array is None or len(m_bot_array) == 0:
             if len(self.kpts_bot) > 0:
-                self.m_bot = cv2.KeyPoint_convert(self.kpts_bot).astype(np.float)
+                self.m_bot = cv2.KeyPoint_convert(self.kpts_bot).astype(np.float64)
                 # Add the ones for the point list in homogeneous coordinates
                 self.m_bot = np.hstack((self.m_bot, np.ones_like(self.m_bot[..., 0, np.newaxis])))  # Adding a 1
             else:
@@ -1749,7 +1749,12 @@ class OmniCamModel(object):
                     #     cv2.imshow("Detected Keypoints - Panorama of Mirror %d" % (self.mirror_number), pano_with_keypts)
                     #     cv2.waitKey(1)
                     #===========================================================
-                    keypts_detected_on_mask = cv2.KeyPoint_convert(pts_GFT)
+                    if pts_GFT is None or len(pts_GFT) == 0:
+                        keypts_detected_on_mask = []
+                    else:
+                        # OpenCV >= 4.13 can be strict about Nx1x2 outputs from goodFeaturesToTrack
+                        pts_GFT = np.asarray(pts_GFT, dtype = np.float32).reshape(-1, 2)
+                        keypts_detected_on_mask = cv2.KeyPoint_convert(pts_GFT)
                 else:
     #                 keypts_detected_on_mask, descriptors_on_mask = detector.detectAndCompute(image=pano_img, mask=m)
                     keypts_detected_on_mask = detector.detect(image = pano_img, mask = m)
@@ -1776,7 +1781,12 @@ class OmniCamModel(object):
         else:
             if feature_detection_method.upper() == "GFT":
                 pts_GFT = cv2.goodFeaturesToTrack(image = pano_img, maxCorners = num_of_features, qualityLevel = 0.01, minDistance = 5, mask = None, useHarrisDetector = useHarrisDetector)
-                keypts_detected = cv2.KeyPoint_convert(pts_GFT)
+                if pts_GFT is None or len(pts_GFT) == 0:
+                    keypts_detected = []
+                else:
+                    # OpenCV >= 4.13 can be strict about Nx1x2 outputs from goodFeaturesToTrack
+                    pts_GFT = np.asarray(pts_GFT, dtype = np.float32).reshape(-1, 2)
+                    keypts_detected = cv2.KeyPoint_convert(pts_GFT)
             else:
                 # keypts_detected_on_mask, descriptors_on_mask = detector.detectAndCompute(image=pano_img, mask=m)
                 # OR
@@ -2593,7 +2603,7 @@ class OmniStereoModel(object):
             error_squared_triang2_acc = 0.
             T_omnistereo_bot_wrt_top = np.identity(4)
             # NOTE: in this model configuration, the rotation is an identity. However, this will not always be the case for other configurations.
-            T_omnistereo_bot_wrt_top_translation = -(self.top_model.F[:3] - self.bot_model.F[:3]).astype(np.float)
+            T_omnistereo_bot_wrt_top_translation = -(self.top_model.F[:3] - self.bot_model.F[:3]).astype(np.float64)
             T_omnistereo_bot_wrt_top[:3, 3] = T_omnistereo_bot_wrt_top_translation[:3, 0]
             bearing_vectors_top = self.top_model.get_3D_point_from_angles_wrt_focus(azimuth = az1, elevation = el1)
             bearing_vectors_bottom = self.bot_model.get_3D_point_from_angles_wrt_focus(azimuth = az2, elevation = el2)
@@ -2665,7 +2675,7 @@ class OmniStereoModel(object):
                 # WISHME: applying the transformation wrt [C] takes some time. The user should provide the "reference" frame preferred for the answer. Also, make it a constant member variable
                 T_omnistereo_bot_wrt_top = np.identity(4)
                 # NOTE: in this model configuration, the rotation is an identity. However, this will not always be the case for other configurations.
-                T_omnistereo_bot_wrt_top_translation = -(self.top_model.F[:3] - self.bot_model.F[:3]).astype(np.float)
+                T_omnistereo_bot_wrt_top_translation = -(self.top_model.F[:3] - self.bot_model.F[:3]).astype(np.float64)
                 T_omnistereo_bot_wrt_top[:3, 3] = T_omnistereo_bot_wrt_top_translation[:3, 0]
 
                 bearing_vectors_top = self.top_model.get_3D_point_from_angles_wrt_focus(azimuth = az1, elevation = el1)
@@ -3080,8 +3090,8 @@ class OmniStereoModel(object):
         matched_desc_bot_all = np.concatenate(matched_desc_bot_list)
 
         # Filter them according to constraints
-        keypts_as_points_top_all = cv2.KeyPoint_convert(matched_kpts_top_all).astype(np.float)
-        keypts_as_points_bot_all = cv2.KeyPoint_convert(matched_kpts_bot_all).astype(np.float)
+        keypts_as_points_top_all = cv2.KeyPoint_convert(matched_kpts_top_all).astype(np.float64)
+        keypts_as_points_bot_all = cv2.KeyPoint_convert(matched_kpts_bot_all).astype(np.float64)
         from omnistereo.common_cv import filter_pixel_correspondences
         validation_list = filter_pixel_correspondences(matched_points_top = keypts_as_points_top_all, matched_points_bot = keypts_as_points_bot_all, min_rectified_disparity = min_rectified_disparity, max_horizontal_diff = max_horizontal_diff)
 
